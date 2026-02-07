@@ -1,0 +1,112 @@
+﻿<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Translator Studio Desktop</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Translator Studio</h1>
+        <p class="sub">Web desktop parity with Tkinter workflow</p>
+      </div>
+      <span id="ver"></span>
+    </header>
+
+    <main class="layout">
+      <section class="card">
+        <h2>Konfiguracja runu</h2>
+        <div class="grid">
+          <label>Provider
+            <select id="provider">
+              <option value="ollama">ollama</option>
+              <option value="google">google</option>
+            </select>
+          </label>
+          <label>Model
+            <input id="model" type="text" />
+          </label>
+          <label>Input EPUB
+            <input id="input_epub" type="text" />
+          </label>
+          <label>Output EPUB
+            <input id="output_epub" type="text" />
+          </label>
+          <label>Prompt
+            <input id="prompt" type="text" />
+          </label>
+          <label>Glossary
+            <input id="glossary" type="text" />
+          </label>
+          <label>Cache
+            <input id="cache" type="text" />
+          </label>
+          <label>Ollama host
+            <input id="ollama_host" type="text" />
+          </label>
+          <label>Google API key
+            <input id="google_api_key" type="password" />
+          </label>
+          <label>Source lang
+            <input id="source_lang" type="text" />
+          </label>
+          <label>Target lang
+            <input id="target_lang" type="text" />
+          </label>
+          <label>Timeout
+            <input id="timeout" type="text" />
+          </label>
+          <label>Attempts
+            <input id="attempts" type="text" />
+          </label>
+          <label>Backoff
+            <input id="backoff" type="text" />
+          </label>
+          <label>Batch max segs
+            <input id="batch_max_segs" type="text" />
+          </label>
+          <label>Batch max chars
+            <input id="batch_max_chars" type="text" />
+          </label>
+          <label>Sleep
+            <input id="sleep" type="text" />
+          </label>
+          <label>Temperature
+            <input id="temperature" type="text" />
+          </label>
+          <label>num_ctx
+            <input id="num_ctx" type="text" />
+          </label>
+          <label>num_predict
+            <input id="num_predict" type="text" />
+          </label>
+          <label>Tags
+            <input id="tags" type="text" />
+          </label>
+        </div>
+        <div class="row checks">
+          <label><input id="use_cache" type="checkbox" /> use cache</label>
+          <label><input id="use_glossary" type="checkbox" /> use glossary</label>
+        </div>
+        <div class="row actions">
+          <button id="save-btn">Zapisz config</button>
+          <button id="models-btn">Pobierz modele</button>
+          <button id="start-btn" class="primary">Start tłumaczenia</button>
+          <button id="validate-btn">Walidacja EPUB</button>
+          <button id="stop-btn" class="danger">Stop</button>
+        </div>
+        <p id="msg" class="msg"></p>
+      </section>
+
+      <section class="card">
+        <h2>Status i log</h2>
+        <div id="status" class="status">Status: --</div>
+        <pre id="log" class="log"></pre>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

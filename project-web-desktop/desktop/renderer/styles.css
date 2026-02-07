@@ -1,0 +1,104 @@
+﻿:root {
+  --bg: #eef2f6;
+  --card: #ffffff;
+  --text: #14202b;
+  --muted: #5e6b78;
+  --accent: #0f766e;
+  --danger: #b91c1c;
+  --border: #d5dee7;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', 'Noto Sans', sans-serif;
+  background: linear-gradient(150deg, #e9eef4, #f7fafc);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  background: #ffffffd9;
+}
+
+.topbar h1 { margin: 0; font-size: 40px; letter-spacing: 0.2px; }
+.sub { margin: 4px 0 0; color: var(--muted); }
+
+.layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+  padding: 18px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 10px 24px rgba(20, 32, 43, 0.07);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+label { display: grid; gap: 4px; color: #2d3b49; font-size: 13px; }
+input, select {
+  border: 1px solid #bfccda;
+  border-radius: 9px;
+  padding: 9px 10px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.actions button { padding: 9px 12px; }
+
+button {
+  border: none;
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: #3d556d;
+  color: #fff;
+  cursor: pointer;
+}
+button.primary { background: var(--accent); }
+button.danger { background: var(--danger); }
+
+.status {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #28425a;
+  font-weight: 600;
+}
+
+.log {
+  height: calc(100vh - 250px);
+  min-height: 360px;
+  margin: 0;
+  border: 1px solid #ccd7e2;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #d7e2f0;
+  overflow: auto;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.msg { min-height: 18px; margin-top: 8px; font-size: 12px; }
+.msg.ok { color: #17603d; }
+.msg.err { color: #b91c1c; }
+
+@media (max-width: 1200px) {
+  .layout { grid-template-columns: 1fr; }
+  .log { height: 380px; }
+}
