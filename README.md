@@ -21,6 +21,9 @@ Keywords: `EPUB translator`, `AI translation`, `Ollama`, `Google Gemini`, `Trans
 - `project-web-desktop/`
   - Electron + FastAPI variant
   - desktop web-style interface
+- `legacy/`
+  - archived root scripts from older layout (`legacy/start.py`, `legacy/tlumacz_ollama.py`)
+  - not the recommended runtime path
 
 ## Quick start
 

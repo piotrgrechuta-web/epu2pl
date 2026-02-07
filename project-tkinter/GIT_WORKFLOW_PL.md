@@ -19,6 +19,10 @@ To ustawia lokalnie (`.git/config`):
 - `rebase.autoStash=true`
 - `push.default=simple`
 
+Dodatkowo skrypt ustawia **dual-push**:
+- konfiguruje `backup` (jesli brak, probuje utworzyc URL `...-private-backup.git`),
+- ustawia `origin` tak, by `git push origin ...` wysylal jednoczesnie na `origin` i `backup`.
+
 ## 2. Start pracy (zawsze przed edycja)
 
 ```powershell
@@ -43,7 +47,7 @@ Skrypt zrobi:
 2. sprawdzenie czy nie jestes za `origin/ep2pl`
 3. `git add -A`
 4. `git commit -m "..."`
-5. `git push origin ep2pl`
+5. `git push origin ep2pl` (po `setup`: automatycznie na `origin` i `backup`)
 
 ## 4. Szybki podglad statusu
 

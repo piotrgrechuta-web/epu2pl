@@ -21,6 +21,9 @@ Slowa kluczowe: `EPUB translator`, `AI translation`, `Ollama`, `Google Gemini`, 
 - `project-web-desktop/`
   - wariant Electron + FastAPI
   - desktopowy interfejs webowy
+- `legacy/`
+  - zarchiwizowane skrypty z dawnego ukladu (`legacy/start.py`, `legacy/tlumacz_ollama.py`)
+  - nie jest to zalecana sciezka uruchamiania
 
 ## Szybki start
 

@@ -51,6 +51,27 @@ def ahead_behind(branch: str) -> Tuple[int, int]:
     return int(parts[0]), int(parts[1])
 
 
+def get_remote_url(name: str, *, push: bool = False) -> str:
+    args = ["remote", "get-url"]
+    if push:
+        args.append("--push")
+    args.append(name)
+    cp = run_git(args, check=False, capture=True)
+    if cp.returncode != 0:
+        return ""
+    return cp.stdout.strip()
+
+
+def derive_private_backup_url(origin_url: str) -> str:
+    url = origin_url.strip()
+    if not url:
+        return ""
+    if url.endswith(".git"):
+        base = url[:-4]
+        return f"{base}-private-backup.git"
+    return f"{url}-private-backup"
+
+
 def cmd_setup(args: argparse.Namespace) -> None:
     _ = args
     _step("Local git setup")
@@ -64,6 +85,30 @@ def cmd_setup(args: argparse.Namespace) -> None:
         run_git(["config", "--local", key, value])
         current = run_git(["config", "--local", "--get", key], capture=True).stdout.strip()
         print(f"{key}={current}")
+
+    _step("Dual-push setup (origin + backup)")
+    origin_url = get_remote_url("origin")
+    if not origin_url:
+        print("Brak zdalnego origin. Pomijam konfiguracje dual-push.")
+        return
+
+    backup_url = get_remote_url("backup")
+    if not backup_url:
+        backup_url = derive_private_backup_url(origin_url)
+        run_git(["remote", "add", "backup", backup_url], check=False)
+        backup_url = get_remote_url("backup")
+
+    if not backup_url:
+        print("Nie udalo sie ustawic remote backup. Publish bedzie pushowal tylko origin.")
+        return
+
+    # Ustawiamy push URL dla origin tak, by pojedynczy 'git push origin ...'
+    # wysylal na oba zdalne repozytoria.
+    run_git(["remote", "set-url", "--push", "origin", origin_url])
+    run_git(["remote", "set-url", "--add", "--push", "origin", backup_url])
+    print(f"origin(push)-> {origin_url}")
+    print(f"origin(push)-> {backup_url}")
+    print(f"backup(fetch/push)-> {backup_url}")
 
 
 def cmd_start(args: argparse.Namespace) -> None:
@@ -112,7 +157,7 @@ def cmd_publish(args: argparse.Namespace) -> None:
     _step("Commit")
     run_git(["commit", "-m", message])
 
-    _step(f"Push origin/{branch}")
+    _step(f"Push origin/{branch} (dual-push origin + backup, jesli skonfigurowane)")
     run_git(["push", "origin", branch])
 
     _step("Done")
