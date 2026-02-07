@@ -97,6 +97,7 @@ Dzieki temu zachowanie logiki runtime jest synchronizowane miedzy wariantami.
 ## Wsparcie
 - Sponsor: https://github.com/sponsors/piotrgrechuta-web
 - link wsparcia jest tez bezposrednio w obu UI aplikacji (`Wesprzyj projekt`)
+- gotowy szablon PL do uzupelnienia GitHub Sponsors: `.github/SPONSORS_PROFILE_TEMPLATE_PL.md`
 
 ## Licencja
 - Licencja: `PolyForm Noncommercial 1.0.0` (`LICENSE`)
