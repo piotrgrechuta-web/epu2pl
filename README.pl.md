@@ -53,3 +53,9 @@ Dzieki temu zachowanie logiki runtime jest synchronizowane miedzy wariantami.
 ## Wsparcie
 - Sponsor: https://github.com/sponsors/piotrgrechuta-web
 - link wsparcia jest tez bezposrednio w obu UI aplikacji (`Wesprzyj projekt`)
+
+## Licencja
+- Licencja: `PolyForm Noncommercial 1.0.0` (`LICENSE`)
+- Mozna kopiowac i modyfikowac kod do celow niekomercyjnych.
+- Przy kopiowaniu/forku trzeba zachowac informacje o autorze i Required Notice (`NOTICE`, `AUTHORS`).
+- Proste przyklady dla uzytkownika: `LICENSE_EXAMPLES_PL.md`

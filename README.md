@@ -53,3 +53,9 @@ This keeps core runtime behavior synchronized across both variants.
 ## Support
 - Sponsor: https://github.com/sponsors/piotrgrechuta-web
 - a support link is also available directly in both app UIs (`Wesprzyj projekt`)
+
+## License
+- License: `PolyForm Noncommercial 1.0.0` (`LICENSE`)
+- You can copy and modify the code for noncommercial purposes.
+- Keep creator attribution and required notices in redistributions (`NOTICE`, `AUTHORS`).
+- Practical examples (PL): `LICENSE_EXAMPLES_PL.md`
