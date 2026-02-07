@@ -98,3 +98,9 @@ W repo istnieje:
 
 czyli przycisk sponsorowania po stronie repo jest gotowy. Brak opcji wplaty oznacza
 zwykle, ze profil GitHub Sponsors nie jest jeszcze aktywowany na koncie.
+
+## 7) Po aktywacji konta - szybki start
+
+1. Dodaj stale CTA do release notes i README.
+2. Raz w tygodniu publikuj krotki update.
+3. Skorzystaj z gotowych tresci: `.github/SPONSORS_OUTREACH_PACK_PL.md`.

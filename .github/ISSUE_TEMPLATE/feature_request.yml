@@ -1,0 +1,44 @@
+name: Feature request
+description: Zglos pomysl na nowa funkcje lub usprawnienie.
+title: "[FEATURE] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Jaki problem rozwiazuje ta funkcja?
+      placeholder: Przy duzych projektach brakuje ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proponowane rozwiazanie
+      placeholder: Dodac opcje ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatywy
+      placeholder: Obecnie obchodze to przez ...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priorytet
+      options:
+        - Niski
+        - Sredni
+        - Wysoki
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Jesli chcesz przyspieszyc realizacje funkcji, mozesz wesprzec projekt:
+        https://github.com/sponsors/piotrgrechuta-web

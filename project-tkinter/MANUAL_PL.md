@@ -672,3 +672,8 @@ W aplikacji sa szybkie przyciski:
 
 Link sponsora:
 - `https://github.com/sponsors/piotrgrechuta-web`
+
+Po aktywacji konta sponsors:
+1. Uzupelnij tresci profilu wg `.github/SPONSORS_PROFILE_TEMPLATE_PL.md`.
+2. Uzyj gotowych postow i CTA z `.github/SPONSORS_OUTREACH_PACK_PL.md`.
+3. Raz w tygodniu opublikuj krotki update + link wsparcia.

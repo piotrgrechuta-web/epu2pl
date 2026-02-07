@@ -1,0 +1,48 @@
+name: Bug report
+description: Zglos blad i dodaj kroki reprodukcji.
+title: "[BUG] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Opis problemu
+      description: Krotko opisz co nie dziala.
+      placeholder: Po kliknieciu "Start translacji" proces zatrzymuje sie po kilku sekundach.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Kroki reprodukcji
+      description: Wypisz kroki 1..N, ktore prowadza do bledu.
+      placeholder: |
+        1. Otworz projekt ...
+        2. Ustaw provider ...
+        3. Kliknij ...
+    validations:
+      required: true
+
+  - type: input
+    id: expected
+    attributes:
+      label: Oczekiwany efekt
+      placeholder: Proces powinien przejsc do konca i zapisac output EPUB.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log / komunikat bledu
+      description: Wklej istotny fragment logu.
+      render: shell
+
+  - type: input
+    id: env
+    attributes:
+      label: Srodowisko
+      description: System, wersja aplikacji, provider/model.
+      placeholder: Windows 11, v0.4.2, Ollama llama3.1:8b

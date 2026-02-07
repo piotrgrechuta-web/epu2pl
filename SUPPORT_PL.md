@@ -1,24 +1,35 @@
 # Wesprzyj projekt
 
-Jesli ten projekt jest dla Ciebie przydatny, mozesz wesprzec jego dalszy rozwoj dobrowolna wplata.
+Jesli projekt pomaga Ci w pracy z EPUB, mozesz wesprzec dalszy rozwoj dobrowolna wplata.
 
-## Jak wesprzec
+## Link do wsparcia
 
 - GitHub Sponsors: https://github.com/sponsors/piotrgrechuta-web
 
-## Status konfiguracji Sponsors
+## Co jest juz gotowe w repo
 
-Jesli po wejsciu w link nie widzisz opcji wplaty, konto Sponsors nie jest jeszcze aktywne.
-Do szybkiej konfiguracji uzyj gotowego pliku:
+- przycisk sponsorowania przez `.github/FUNDING.yml`
+- link `Wesprzyj projekt` w UI aplikacji (Tkinter i web-desktop)
+- sekcje wsparcia w README
+- gotowe tresci do profilu sponsorowania:
+  - `.github/SPONSORS_PROFILE_TEMPLATE_PL.md`
+- gotowe tresci promocyjne (posty, release notes, CTA):
+  - `.github/SPONSORS_OUTREACH_PACK_PL.md`
 
-- `project-web-desktop/.github/SPONSORS_PROFILE_TEMPLATE_PL.md`
+## Co ustawic po aktywacji konta Sponsors
 
-Ten plik zawiera gotowe tresci do wklejenia do formularza GitHub Sponsors:
-- short bio,
-- opis profilu,
-- cele finansowe,
-- propozycje progow (tiers),
-- checkliste krokow aktywacji.
+1. Utrzymaj 3-4 progi wsparcia (np. 3 / 10 / 25 / 50 USD), bez komplikowania benefitow.
+2. Ustaw jeden mierzalny cel miesieczny (np. kwota na utrzymanie i rozwoj).
+3. Dodaj stale CTA w release notes: 1-2 zdania + link sponsors.
+4. Publikuj minimum 1 update tygodniowo (co doszlo, co bedzie dalej).
+5. Odpowiadaj na issue/discussions w ciagu 24-72h (zaufanie = konwersja).
+
+## Prosty rytm tygodniowy (15-20 min)
+
+1. Wypusc mala aktualizacje lub changelog.
+2. Wrzuc krotki post (LinkedIn/X/GitHub).
+3. Podziekuj wspierajacym i pokaz jeden konkretny efekt ich wsparcia.
+4. Dodaj jedno zdanie CTA w README albo notatce wydania.
 
 ## Na co ida wplaty
 
