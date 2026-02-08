@@ -8,7 +8,7 @@ Link sponsors:
 ## 1) Krotki opis projektu (1 zdanie)
 
 ```text
-EPUB Translator Studio to zestaw narzedzi desktop (Tkinter + web-desktop) do tlumaczenia, redakcji i walidacji EPUB z AI.
+EPUB Translator Studio to zestaw narzedzi desktop (Tkinter) do tlumaczenia, redakcji i walidacji EPUB z AI.
 ```
 
 ## 2) CTA do README / release notes

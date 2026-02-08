@@ -18,7 +18,7 @@ Wklej:
 ```text
 Czesc! Nazywam sie Piotr Grechuta.
 
-Rozwijam projekt epu2pl / Translator Studio: aplikacje desktop i web do pracy z EPUB
+Rozwijam projekt EPUB Translator Studio: aplikacja desktop Tkinter do pracy z EPUB
 (tlumaczenie, redakcja, walidacja, kolejka projektow, profile ustawien).
 
 Wsparcie finansowe przeznaczam na:
