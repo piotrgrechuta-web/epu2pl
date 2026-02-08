@@ -3,13 +3,13 @@
 [![PR checks](https://github.com/piotrgrechuta-web/epub-translator-studio/actions/workflows/pr-checks.yml/badge.svg?branch=master)](https://github.com/piotrgrechuta-web/epub-translator-studio/actions/workflows/pr-checks.yml)
 [![Release](https://img.shields.io/github/v/release/piotrgrechuta-web/epub-translator-studio?display_name=tag)](https://github.com/piotrgrechuta-web/epub-translator-studio/releases)
 [![License: Personal Use Only](https://img.shields.io/badge/license-Personal%20Use%20Only-red.svg)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](project-web-desktop/backend/requirements.txt)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](project-tkinter/app_main.py)
 
 Language: **English** | [Polski](README.pl.md) | [Deutsch](README.de.md) | [Espanol](README.es.md) | [Francais](README.fr.md) | [Portugues](README.pt.md)
 
 Desktop toolkit for translating and editing EPUB files with AI.
 
-KEYWORDS: `EPUB translator`, `EPUB translation tool`, `AI translation`, `ebook translator`, `Ollama translator`, `Google Gemini translation`, `Translation Memory`, `QA gate`, `Tkinter`, `Electron`, `FastAPI`, `Python`.
+KEYWORDS: `EPUB translator`, `EPUB translation tool`, `AI translation`, `ebook translator`, `Ollama translator`, `Google Gemini translation`, `Translation Memory`, `QA gate`, `Tkinter`, `Python`.
 
 ## What it does
 - EPUB translation (`translate`) and post-editing (`edit`)
@@ -23,9 +23,6 @@ KEYWORDS: `EPUB translator`, `EPUB translation tool`, `AI translation`, `ebook t
 - `project-tkinter/`
   - main desktop app in Python + Tkinter
   - fullest feature set
-- `project-web-desktop/`
-  - Electron + FastAPI variant
-  - desktop web-style interface
 - `legacy/`
   - archived root scripts from older layout (`legacy/start.py`, `legacy/tlumacz_ollama.py`)
   - not the recommended runtime path
@@ -41,13 +38,6 @@ python app_main.py --variant classic
 Compatibility aliases still available:
 - `python start.py`
 - `python start_horizon.py`
-
-### Web desktop
-```powershell
-cd project-web-desktop
-.\run-backend.ps1
-.\run-desktop.ps1
-```
 
 ## First Run
 - You need one of these paths:
@@ -89,13 +79,10 @@ export GOOGLE_API_KEY="<YOUR_KEY>"
 - Online AI (for example Google Gemini): set a valid API key (`GOOGLE_API_KEY` or GUI field).
 - Internet access is required for online providers.
 
-## Architecture (Variant 0: shared core)
+## Architecture (Tkinter core)
 - shared runtime logic lives in `project-tkinter/runtime_core.py`
-- web backend (`project-web-desktop/backend/app.py`) imports the same core
 - canonical translator: `project-tkinter/tlumacz_ollama.py`
-- web fallback translator: `project-web-desktop/backend/engine/tlumacz_ollama.py`
-
-This keeps core runtime behavior synchronized across both variants.
+- both UI variants (`classic`, `horizon`) run on the same core/runtime contracts
 
 ## Documentation
 - Tkinter user manual (PL): `project-tkinter/MANUAL_PL.md`
@@ -107,7 +94,7 @@ This keeps core runtime behavior synchronized across both variants.
 
 ## Support
 - Sponsor: https://github.com/sponsors/piotrgrechuta-web
-- a support link is also available directly in both app UIs (`Wesprzyj projekt`)
+- a support link is also available directly in Tkinter app UI (`Wesprzyj projekt`)
 - ready PL template for GitHub Sponsors profile: `.github/SPONSORS_PROFILE_TEMPLATE_PL.md`
 - ready PL outreach pack (posts/release CTA): `.github/SPONSORS_OUTREACH_PACK_PL.md`
 - community templates for feedback/contributions: `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`

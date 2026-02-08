@@ -4,7 +4,7 @@ Langue: [English](README.md) | [Polski](README.pl.md) | [Deutsch](README.de.md) 
 
 Boite a outils desktop pour traduire et editer des fichiers EPUB avec IA.
 
-KEYWORDS: `traducteur EPUB`, `outil de traduction EPUB`, `traduction IA`, `traducteur ebook`, `Ollama`, `Google Gemini`, `Translation Memory`, `QA gate`, `Tkinter`, `Electron`, `FastAPI`, `Python`.
+KEYWORDS: `traducteur EPUB`, `outil de traduction EPUB`, `traduction IA`, `traducteur ebook`, `Ollama`, `Google Gemini`, `Translation Memory`, `QA gate`, `Tkinter`, `Python`.
 
 ## Fonctions
 - Traduction EPUB (`translate`) et post-edition (`edit`)
@@ -16,7 +16,6 @@ KEYWORDS: `traducteur EPUB`, `outil de traduction EPUB`, `traduction IA`, `tradu
 
 ## Variantes
 - `project-tkinter/` (variante principale, Python + Tkinter)
-- `project-web-desktop/` (Electron + FastAPI)
 - `legacy/` (scripts racine archives, non recommande)
 
 ## Demarrage rapide
@@ -25,13 +24,6 @@ KEYWORDS: `traducteur EPUB`, `outil de traduction EPUB`, `traduction IA`, `tradu
 ```powershell
 cd project-tkinter
 python app_main.py --variant classic
-```
-
-### Web Desktop
-```powershell
-cd project-web-desktop
-.\run-backend.ps1
-.\run-desktop.ps1
 ```
 
 ## Prerequis

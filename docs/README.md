@@ -28,6 +28,6 @@ Uklad jest przygotowany tak, aby mozna go:
 ## Status
 
 - Branch protection: aktywna na `master` i `ep2pl`
-- Required checks: `python-checks`, `desktop-manifest-check`, `validate-pr-body`
+- Required checks: `python-checks`, `validate-pr-body`
 - PR template: wymusza wypelnione sekcje i checkliste
 - Dokumentacja online (GitHub Pages): `https://piotrgrechuta-web.github.io/epub-translator-studio/`

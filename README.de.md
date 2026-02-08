@@ -4,7 +4,7 @@ Sprache: [English](README.md) | [Polski](README.pl.md) | **Deutsch** | [Espanol]
 
 Desktop-Toolkit fuer Uebersetzung und Bearbeitung von EPUB-Dateien mit KI.
 
-KEYWORDS: `EPUB Uebersetzer`, `EPUB Uebersetzungswerkzeug`, `KI Uebersetzung`, `ebook Uebersetzer`, `Ollama`, `Google Gemini`, `Translation Memory`, `QA Gate`, `Tkinter`, `Electron`, `FastAPI`, `Python`.
+KEYWORDS: `EPUB Uebersetzer`, `EPUB Uebersetzungswerkzeug`, `KI Uebersetzung`, `ebook Uebersetzer`, `Ollama`, `Google Gemini`, `Translation Memory`, `QA Gate`, `Tkinter`, `Python`.
 
 ## Funktionen
 - EPUB Uebersetzung (`translate`) und Nachbearbeitung (`edit`)
@@ -16,7 +16,6 @@ KEYWORDS: `EPUB Uebersetzer`, `EPUB Uebersetzungswerkzeug`, `KI Uebersetzung`, `
 
 ## Varianten
 - `project-tkinter/` (Hauptvariante, Python + Tkinter)
-- `project-web-desktop/` (Electron + FastAPI)
 - `legacy/` (archivierte Root-Skripte, nicht empfohlen)
 
 ## Schnellstart
@@ -25,13 +24,6 @@ KEYWORDS: `EPUB Uebersetzer`, `EPUB Uebersetzungswerkzeug`, `KI Uebersetzung`, `
 ```powershell
 cd project-tkinter
 python app_main.py --variant classic
-```
-
-### Web Desktop
-```powershell
-cd project-web-desktop
-.\run-backend.ps1
-.\run-desktop.ps1
 ```
 
 ## Voraussetzungen

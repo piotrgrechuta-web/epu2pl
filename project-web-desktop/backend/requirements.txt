@@ -1,5 +1,0 @@
-﻿fastapi==0.116.1
-uvicorn[standard]==0.31.1
-pydantic==2.9.2
-requests==2.32.3
-lxml==5.3.0

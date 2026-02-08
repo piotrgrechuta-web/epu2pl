@@ -14,7 +14,7 @@ Ekran: sekcja `Projekt i profile` (lewy panel, u gory).
 Najwazniejsze elementy:
 - licznik statusow wszystkich projektow: `idle/pending/running/error`,
 - lista statusu projektow z podsumowaniem ksiazki i etapow,
-- statusy etapow `T/R` sa ujednolicone miedzy aplikacjami: `none/pending/running/ok/error`,
+- statusy etapow `T/R` sa ujednolicone miedzy wariantami Tkinter (`classic`/`horizon`): `none/pending/running/ok/error`,
 - format wpisu:
   - `ks=<book> | T:<done>/<total> <status> | R:<done>/<total> <status> | -> <next_action>`.
 
@@ -23,18 +23,7 @@ Dodatkowo:
 - linia `Metryki runu` pokazuje czas, segmenty, cache/TM i reuse-rate dla ostatniego runu,
 - sekcja `Uruchomienie` pokazuje biezacy status procesu i postep.
 
-## Gdzie widac postep projektu (Web Desktop)
-
-Ekran: gora aplikacji web-desktop (`project-web-desktop`):
-- rozwijana lista projektu zawiera skrot statusu i podsumowanie etapow,
-- pole `Podsumowanie projektu` pokazuje ksiazke + T/R + nastepna akcje.
-- panel `Metryki runu` pokazuje czas, segmenty, cache/TM i reuse-rate.
-- panel `Ostatnie akcje (timeline projektu)` pokazuje ostatnie runy.
-
-Format jest spojny z wariantem Tkinter:
-- `ks=<book> | T:<done>/<total> <status> | R:<done>/<total> <status> | -> <next_action>`.
-
-## Poprawki UX wdrozone w aplikacjach
+## Poprawki UX wdrozone w aplikacji
 
 Wariant Tkinter (`app_gui_classic.py`, `app_gui_horizon.py`, `studio_suite.py`):
 - glowne okno i okna narzedzi startuja w trybie maksymalnym (z dynamicznymi granicami),
@@ -50,11 +39,6 @@ Wariant Tkinter (`app_gui_classic.py`, `app_gui_horizon.py`, `studio_suite.py`):
   - `Ctrl+R` start runu,
   - `Ctrl+Q` kolejkowanie projektu,
   - `F5` odswiezenie modeli.
-
-Wariant Web Desktop (`desktop/main.js`, `desktop/renderer/styles.css`):
-- okno Electron startuje na rozmiarze dopasowanym do ekranu i maksymalizuje sie po starcie,
-- layout ma minimalne szerokosci + `overflow`, wiec po pomniejszeniu sa paski przewijania,
-- menu kontekstowe pod prawym klawiszem (undo/redo/cut/copy/paste/delete/select all + link actions).
 
 ## Gdzie jest Wiki / Pages
 

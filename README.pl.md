@@ -4,7 +4,7 @@ Jezyk: [English](README.md) | **Polski** | [Deutsch](README.de.md) | [Espanol](R
 
 Desktopowy zestaw narzedzi do tlumaczenia i redakcji plikow EPUB z AI.
 
-KEYWORDS: `tlumacz EPUB`, `narzedzie do tlumaczenia EPUB`, `tlumaczenie AI`, `tlumacz ebookow`, `Ollama`, `Google Gemini`, `Translation Memory`, `QA gate`, `Tkinter`, `Electron`, `FastAPI`, `Python`.
+KEYWORDS: `tlumacz EPUB`, `narzedzie do tlumaczenia EPUB`, `tlumaczenie AI`, `tlumacz ebookow`, `Ollama`, `Google Gemini`, `Translation Memory`, `QA gate`, `Tkinter`, `Python`.
 
 
 ## Co to robi
@@ -19,9 +19,6 @@ KEYWORDS: `tlumacz EPUB`, `narzedzie do tlumaczenia EPUB`, `tlumaczenie AI`, `tl
 - `project-tkinter/`
   - glowna aplikacja desktop w Python + Tkinter
   - najpelniejszy zestaw funkcji
-- `project-web-desktop/`
-  - wariant Electron + FastAPI
-  - desktopowy interfejs webowy
 - `legacy/`
   - zarchiwizowane skrypty z dawnego ukladu (`legacy/start.py`, `legacy/tlumacz_ollama.py`)
   - nie jest to zalecana sciezka uruchamiania
@@ -37,13 +34,6 @@ python app_main.py --variant classic
 Aliasy kompatybilnosci nadal dzialaja:
 - `python start.py`
 - `python start_horizon.py`
-
-### Web desktop
-```powershell
-cd project-web-desktop
-.\run-backend.ps1
-.\run-desktop.ps1
-```
 
 ## Pierwsze uruchomienie
 - Potrzebujesz jednej z drog:
@@ -85,13 +75,10 @@ export GOOGLE_API_KEY="<TWOJ_KLUCZ>"
 - AI online (np. Google Gemini): ustawiony poprawny klucz API (`GOOGLE_API_KEY` lub pole w GUI).
 - Dla providerow online potrzebny jest internet.
 
-## Architektura (Variant 0: shared core)
+## Architektura (Tkinter core)
 - wspolna logika runtime jest w `project-tkinter/runtime_core.py`
-- backend web (`project-web-desktop/backend/app.py`) importuje ten sam core
 - kanoniczny translator: `project-tkinter/tlumacz_ollama.py`
-- fallback translatora dla web: `project-web-desktop/backend/engine/tlumacz_ollama.py`
-
-Dzieki temu zachowanie logiki runtime jest synchronizowane miedzy wariantami.
+- oba warianty UI (`classic`, `horizon`) korzystaja z tej samej logiki runtime
 
 ## Dokumentacja
 - manual uzytkownika Tkinter (PL): `project-tkinter/MANUAL_PL.md`
@@ -102,7 +89,7 @@ Dzieki temu zachowanie logiki runtime jest synchronizowane miedzy wariantami.
 
 ## Wsparcie
 - Sponsor: https://github.com/sponsors/piotrgrechuta-web
-- link wsparcia jest tez bezposrednio w obu UI aplikacji (`Wesprzyj projekt`)
+- link wsparcia jest tez bezposrednio w UI aplikacji Tkinter (`Wesprzyj projekt`)
 - gotowy szablon PL do uzupelnienia GitHub Sponsors: `.github/SPONSORS_PROFILE_TEMPLATE_PL.md`
 - gotowy pakiet PL do promocji (posty/CTA do release): `.github/SPONSORS_OUTREACH_PACK_PL.md`
 - szablony community (zgloszenia i PR): `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`

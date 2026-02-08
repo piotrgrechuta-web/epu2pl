@@ -18,12 +18,12 @@ Zamienic roadmape na konkretne, mierzalne zadania z jasnym zakresem i kryteriami
 
 Status M1: `zrealizowane`.
 
-### Issue 1: Ujednolicenie statusow etapow (Tkinter + Web)
+### Issue 1: Ujednolicenie statusow etapow (Tkinter classic + horizon)
 - Zakres:
   - jedno slownictwo i mapowanie statusow (`idle/pending/running/ok/error`) w obu interfejsach,
   - jeden format podsumowania projektu.
 - Done:
-  - te same statusy widoczne w `project-tkinter` i `project-web-desktop`,
+  - te same statusy widoczne w obu wariantach Tkinter (`classic` i `horizon`),
   - test manualny: ten sam projekt pokazuje zgodne statusy po odswiezeniu UI.
 
 ### Issue 2: Panel "Ostatnie akcje" (inline timeline)
@@ -40,12 +40,12 @@ Status M1: `zrealizowane`.
   - segmenty przetworzone,
   - hit-rate cache/TM.
 - Done:
-  - metryki widoczne po zakonczeniu runu w obu interfejsach,
+  - metryki widoczne po zakonczeniu runu w obu wariantach Tkinter,
   - brak regresji aktualnego logowania.
 
 ## M2: CI Hardening + Test Coverage
 
-### Issue 4: Testy jednostkowe backend parsera EPUB
+### Issue 4: Testy jednostkowe parsera EPUB
 - Zakres:
   - testy OPF/spine/manifest,
   - testy bezpiecznej segmentacji XHTML (inline tags).
@@ -53,9 +53,10 @@ Status M1: `zrealizowane`.
   - testy uruchamiane w CI,
   - minimalne pokrycie dla krytycznych sciezek parsera.
 
-### Issue 5: Smoke API backendu
+### Issue 5: Smoke runtime/UI Tkinter
 - Zakres:
-  - testy endpointow zdrowia i statusu (`/health`, `/run/status`, lista projektow).
+  - smoke uruchomienia GUI i warstwy runtime (`project-tkinter/scripts/smoke_gui.py`),
+  - szybka walidacja startu i podstawowych przejsc statusow projektu.
 - Done:
   - zielony smoke w PR checks,
   - czytelny raport bledu przy regresji.

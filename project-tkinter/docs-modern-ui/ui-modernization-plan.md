@@ -48,11 +48,11 @@ Zrobione:
 ## Proponowany kolejny etap
 
 ## Etap 6: Spojnosc komunikatow i telemetry UX
-- [x] Standaryzacja slownictwa statusow miedzy Tkinter i web-desktop.
+- [x] Standaryzacja slownictwa statusow miedzy wariantami Tkinter (`classic` i `horizon`).
 - [x] Panel "ostatnie akcje" (inline timeline) dla aktywnego projektu.
 - [x] Mini-metryki runu (czas, segmenty, cache/TM, reuse-rate) widoczne w UI.
 
 Zrobione:
-- statusy etapow (`none/pending/running/ok/error`) sa spojne miedzy wariantami UI,
-- oba UI pokazuja timeline ostatnich uruchomien projektu,
-- oba UI pokazuja metryki ostatniego runu bez wchodzenia do surowego logu.
+- statusy etapow (`none/pending/running/ok/error`) sa spojne miedzy `classic` i `horizon`,
+- oba warianty Tkinter pokazuja timeline ostatnich uruchomien projektu,
+- oba warianty Tkinter pokazuja metryki ostatniego runu bez wchodzenia do surowego logu.

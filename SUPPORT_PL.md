@@ -9,7 +9,7 @@ Jesli projekt pomaga Ci w pracy z EPUB, mozesz wesprzec dalszy rozwoj dobrowolna
 ## Co jest juz gotowe w repo
 
 - przycisk sponsorowania przez `.github/FUNDING.yml`
-- link `Wesprzyj projekt` w UI aplikacji (Tkinter i web-desktop)
+- link `Wesprzyj projekt` w UI aplikacji Tkinter
 - sekcje wsparcia w README
 - gotowe tresci do profilu sponsorowania:
   - `.github/SPONSORS_PROFILE_TEMPLATE_PL.md`

@@ -2,15 +2,12 @@
 
 ## Cel
 
-Ta sekcja daje minimalna sciezke uruchomienia obu wariantow aplikacji:
-- Tkinter (gowna aplikacja desktop),
-- Electron + FastAPI (wariant web-desktop).
+Ta sekcja daje minimalna sciezke uruchomienia aplikacji Tkinter (glowna aplikacja desktop).
 
 ## Wymagania bazowe
 
 - Git
 - Python 3.11+
-- Node.js LTS + npm
 - VS Code (opcjonalnie, ale zalecane)
 - Dla lokalnego AI: Ollama + model
 - Dla online AI: klucz API (np. Google)
@@ -31,22 +28,6 @@ cd project-tkinter
 python -m venv .venv
 . .\.venv\Scripts\Activate.ps1
 python app_main.py --variant classic
-```
-
-## Web desktop (Electron + FastAPI)
-
-```powershell
-cd project-web-desktop\backend
-python -m venv .venv
-. .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-
-cd ..\desktop
-npm ci
-
-cd ..
-.\run-backend.ps1
-.\run-desktop.ps1
 ```
 
 ## Minimalna weryfikacja po starcie
