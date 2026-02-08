@@ -7,8 +7,8 @@
 Plik: `.github/workflows/pr-checks.yml`
 
 Uruchamia sie na:
-- `push` do `main` (oraz tymczasowo `master` w trakcie migracji),
-- `pull_request` do `main` (oraz tymczasowo `master` w trakcie migracji),
+- `push` do `main`,
+- `pull_request` do `main`,
 - recznie (`workflow_dispatch`).
 
 Sprawdza:
