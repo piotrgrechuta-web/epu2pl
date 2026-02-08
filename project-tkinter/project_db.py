@@ -648,6 +648,96 @@ class ProjectDB:
     def list_projects(self) -> List[sqlite3.Row]:
         return list(self.conn.execute("SELECT * FROM projects ORDER BY updated_at DESC, id DESC"))
 
+    @staticmethod
+    def _stage_record(run: Optional[sqlite3.Row]) -> Dict[str, Any]:
+        if run is None:
+            return {
+                "status": "none",
+                "done": 0,
+                "total": 0,
+                "message": "",
+                "started_at": 0,
+                "finished_at": 0,
+                "updated_at": 0,
+                "is_complete": False,
+            }
+        done = max(0, int(run["global_done"] or 0))
+        total = max(0, int(run["global_total"] or 0))
+        status = str(run["status"] or "none").strip().lower() or "none"
+        started_at = int(run["started_at"] or 0)
+        finished_at = int(run["finished_at"] or 0)
+        updated_at = finished_at or started_at
+        is_complete = status == "ok" and (total == 0 or done >= total)
+        return {
+            "status": status,
+            "done": done,
+            "total": total,
+            "message": str(run["message"] or ""),
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "updated_at": int(updated_at),
+            "is_complete": bool(is_complete),
+        }
+
+    @staticmethod
+    def _next_action(project_status: str, active_step: str, translate: Dict[str, Any], edit: Dict[str, Any]) -> str:
+        p_status = str(project_status or "idle").strip().lower() or "idle"
+        step = str(active_step or "translate").strip().lower() or "translate"
+        if p_status == "running":
+            return f"running:{step}"
+        if p_status == "pending":
+            return f"pending:{step}"
+        if bool(edit.get("is_complete")):
+            return "done"
+        if not bool(translate.get("is_complete")):
+            return "translate_retry" if str(translate.get("status", "")) == "error" else "translate"
+        return "edit_retry" if str(edit.get("status", "")) == "error" else "edit"
+
+    def list_projects_with_stage_summary(self) -> List[Dict[str, Any]]:
+        projects = [dict(r) for r in self.list_projects()]
+        if not projects:
+            return []
+        project_ids = [int(p["id"]) for p in projects]
+        placeholders = ",".join(["?"] * len(project_ids))
+        rows = list(
+            self.conn.execute(
+                f"""
+                SELECT project_id, step, status, global_done, global_total, message, started_at, finished_at, id
+                FROM runs
+                WHERE project_id IN ({placeholders}) AND step IN ('translate', 'edit')
+                ORDER BY project_id ASC, step ASC, COALESCE(finished_at, started_at) DESC, id DESC
+                """,
+                project_ids,
+            )
+        )
+        latest: Dict[Tuple[int, str], sqlite3.Row] = {}
+        for row in rows:
+            key = (int(row["project_id"]), str(row["step"]))
+            if key not in latest:
+                latest[key] = row
+        out: List[Dict[str, Any]] = []
+        for project in projects:
+            pid = int(project["id"])
+            input_epub = str(project.get("input_epub") or "").strip()
+            book = Path(input_epub).name if input_epub else "-"
+            tr = self._stage_record(latest.get((pid, "translate")))
+            ed = self._stage_record(latest.get((pid, "edit")))
+            next_action = self._next_action(str(project.get("status") or "idle"), str(project.get("active_step") or "translate"), tr, ed)
+            item = dict(project)
+            item["book"] = book
+            item["translate"] = tr
+            item["edit"] = ed
+            item["next_action"] = next_action
+            out.append(item)
+        return out
+
+    def get_project_with_stage_summary(self, project_id: int) -> Optional[Dict[str, Any]]:
+        pid = int(project_id)
+        for row in self.list_projects_with_stage_summary():
+            if int(row["id"]) == pid:
+                return row
+        return None
+
     def list_projects_by_status(self, statuses: List[str]) -> List[sqlite3.Row]:
         if not statuses:
             return []

@@ -37,10 +37,13 @@ jobs:
             }
 
             function section(title) {
-              const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-              const re = new RegExp(`${escaped}\\n([\\s\\S]*?)(?=\\n## |$)`, "m");
-              const m = body.match(re);
-              return m ? m[1].trim() : "";
+              const marker = `${title}\n`;
+              const start = body.indexOf(marker);
+              if (start < 0) return "";
+              const rest = body.slice(start + marker.length);
+              const next = rest.search(/\n## /);
+              const chunk = next >= 0 ? rest.slice(0, next) : rest;
+              return chunk.trim();
             }
 
             function normalizedText(s) {

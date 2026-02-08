@@ -307,6 +307,30 @@ def _profile_settings(row: Optional[Any]) -> Dict[str, Any]:
         return {}
 
 
+def _stage_payload(stage: Any) -> Dict[str, Any]:
+    if not isinstance(stage, dict):
+        return {
+            "status": "none",
+            "done": 0,
+            "total": 0,
+            "message": "",
+            "started_at": 0,
+            "finished_at": 0,
+            "updated_at": 0,
+            "is_complete": False,
+        }
+    return {
+        "status": str(stage.get("status") or "none"),
+        "done": int(stage.get("done", 0) or 0),
+        "total": int(stage.get("total", 0) or 0),
+        "message": str(stage.get("message") or ""),
+        "started_at": int(stage.get("started_at", 0) or 0),
+        "finished_at": int(stage.get("finished_at", 0) or 0),
+        "updated_at": int(stage.get("updated_at", 0) or 0),
+        "is_complete": bool(stage.get("is_complete", False)),
+    }
+
+
 def _project_payload(db: ProjectDB, row: Any) -> Dict[str, Any]:
     data = dict(row)
     pt = int(row["profile_translate_id"]) if row["profile_translate_id"] is not None else None
@@ -331,6 +355,22 @@ def _project_payload(db: ProjectDB, row: Any) -> Dict[str, Any]:
             "profile_name": data["profile_edit_name"],
         },
     }
+    summary = None
+    if isinstance(row, dict) and {"book", "translate", "edit", "next_action"} <= set(row.keys()):
+        summary = row
+    else:
+        rid = int(row["id"])
+        summary = db.get_project_with_stage_summary(rid)
+    if summary is not None:
+        data["book"] = str(summary.get("book") or "-")
+        data["translate"] = _stage_payload(summary.get("translate"))
+        data["edit"] = _stage_payload(summary.get("edit"))
+        data["next_action"] = str(summary.get("next_action") or "translate")
+    else:
+        data["book"] = "-"
+        data["translate"] = _stage_payload(None)
+        data["edit"] = _stage_payload(None)
+        data["next_action"] = "translate"
     return data
 
 
@@ -636,7 +676,7 @@ def set_config(state: UiState) -> Dict[str, Any]:
 def projects_list() -> Dict[str, Any]:
     db, _ = _open_db()
     try:
-        rows = db.list_projects()
+        rows = db.list_projects_with_stage_summary()
         out = []
         for r in rows:
             if str(r["status"] or "idle") == "deleted":
@@ -651,6 +691,10 @@ def projects_list() -> Dict[str, Any]:
                     "source_lang": str(r["source_lang"] or "en"),
                     "target_lang": str(r["target_lang"] or "pl"),
                     "updated_at": int(r["updated_at"] or 0),
+                    "book": str(r.get("book") or "-"),
+                    "translate": _stage_payload(r.get("translate")),
+                    "edit": _stage_payload(r.get("edit")),
+                    "next_action": str(r.get("next_action") or "translate"),
                 }
             )
         return {"projects": out, "counts": _counts(rows), "active_project_id": db.get_setting("active_project_id", None)}
