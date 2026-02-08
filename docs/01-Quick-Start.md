@@ -18,8 +18,8 @@ Ta sekcja daje minimalna sciezke uruchomienia obu wariantow aplikacji:
 ## Szybki start: klon i branch
 
 ```powershell
-git clone https://github.com/piotrgrechuta-web/epu2pl.git
-cd epu2pl
+git clone https://github.com/piotrgrechuta-web/epub-translator-studio.git
+cd epub-translator-studio
 git checkout ep2pl
 git pull
 ```

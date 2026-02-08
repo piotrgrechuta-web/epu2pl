@@ -52,7 +52,7 @@ Co modyfikuje EPUB:
 
 1. Wejdz do folderu:
 ```powershell
-cd C:\Users\Public\epu2pl\project-tkinter
+cd C:\Users\Public\epub-translator-studio\project-tkinter
 ```
 
 2. Uruchom GUI:

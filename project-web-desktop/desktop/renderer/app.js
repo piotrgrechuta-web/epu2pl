@@ -1,6 +1,6 @@
 const API = 'http://127.0.0.1:8765';
 const SUPPORT_URL = 'https://github.com/sponsors/piotrgrechuta-web';
-const REPO_URL = 'https://github.com/piotrgrechuta-web/epu2pl';
+const REPO_URL = 'https://github.com/piotrgrechuta-web/epub-translator-studio';
 
 const FORM_IDS = [
   'mode', 'provider', 'model', 'input_epub', 'output_epub', 'prompt', 'glossary', 'cache', 'ollama_host',

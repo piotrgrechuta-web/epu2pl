@@ -1,6 +1,6 @@
 # Documentation Portal
 
-To jest rozszerzona dokumentacja projektu `epu2pl` w jednym miejscu.
+To jest rozszerzona dokumentacja projektu `EPUB Translator Studio` w jednym miejscu.
 Uklad jest przygotowany tak, aby mozna go:
 - czytac bezposrednio z repo (`docs/`),
 - wystawic jako GitHub Pages,
@@ -30,4 +30,4 @@ Uklad jest przygotowany tak, aby mozna go:
 - Branch protection: aktywna na `master` i `ep2pl`
 - Required checks: `python-checks`, `desktop-manifest-check`, `validate-pr-body`
 - PR template: wymusza wypelnione sekcje i checkliste
-- Dokumentacja online (GitHub Pages): `https://piotrgrechuta-web.github.io/epu2pl/`
+- Dokumentacja online (GitHub Pages): `https://piotrgrechuta-web.github.io/epub-translator-studio/`

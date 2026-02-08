@@ -59,7 +59,7 @@ Wariant Web Desktop (`desktop/main.js`, `desktop/renderer/styles.css`):
 ## Gdzie jest Wiki / Pages
 
 Aktualny punkt wejscia dokumentacji:
-- GitHub Pages: `https://piotrgrechuta-web.github.io/epu2pl/`
+- GitHub Pages: `https://piotrgrechuta-web.github.io/epub-translator-studio/`
 - Repo docs: `docs/`
 
 Wiki GitHub (`/wiki`) moze wymagac inicjalizacji backendu.

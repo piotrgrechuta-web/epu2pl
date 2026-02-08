@@ -1,7 +1,7 @@
 # EPUB Translator Studio
 
-[![PR checks](https://github.com/piotrgrechuta-web/epu2pl/actions/workflows/pr-checks.yml/badge.svg?branch=master)](https://github.com/piotrgrechuta-web/epu2pl/actions/workflows/pr-checks.yml)
-[![Release](https://img.shields.io/github/v/release/piotrgrechuta-web/epu2pl?display_name=tag)](https://github.com/piotrgrechuta-web/epu2pl/releases)
+[![PR checks](https://github.com/piotrgrechuta-web/epub-translator-studio/actions/workflows/pr-checks.yml/badge.svg?branch=master)](https://github.com/piotrgrechuta-web/epub-translator-studio/actions/workflows/pr-checks.yml)
+[![Release](https://img.shields.io/github/v/release/piotrgrechuta-web/epub-translator-studio?display_name=tag)](https://github.com/piotrgrechuta-web/epub-translator-studio/releases)
 [![License: Personal Use Only](https://img.shields.io/badge/license-Personal%20Use%20Only-red.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](project-web-desktop/backend/requirements.txt)
 
@@ -102,7 +102,7 @@ This keeps core runtime behavior synchronized across both variants.
 - multi-device Git workflow: `project-tkinter/GIT_WORKFLOW_PL.md`
 - support info: `SUPPORT_PL.md`
 - docs index (Wiki/Pages ready): `docs/README.md`
-- online docs portal: `https://piotrgrechuta-web.github.io/epu2pl/`
+- online docs portal: `https://piotrgrechuta-web.github.io/epub-translator-studio/`
 - where progress/UI/Wiki are visible: `docs/08-Status-UI-i-Wiki.md`
 
 ## Support
