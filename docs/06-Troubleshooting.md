@@ -66,3 +66,24 @@ Sprawdz:
 4. opisz oczekiwane vs rzeczywiste zachowanie.
 
 To radykalnie skraca czas diagnozy.
+
+## 6.8. Wiki przekierowuje na strone repo (302)
+
+Objaw:
+- `https://github.com/<owner>/<repo>/wiki` wraca do strony glownej repo,
+- `git ls-remote https://github.com/<owner>/<repo>.wiki.git` zwraca blad.
+
+Co zrobic:
+1. Wejdz w `Settings -> General -> Features` i potwierdz, ze `Wiki` jest wlaczone.
+2. Wylacz i wlacz `Wiki` ponownie (czasem backend nie inicjalizuje sie poprawnie za pierwszym razem).
+3. Otworz zakladke `Wiki` i utworz pierwsza strone (np. `Home`) - to inicjalizuje repozytorium `*.wiki.git`.
+4. Po inicjalizacji sprawdz:
+
+```powershell
+gh api repos/<owner>/<repo> --jq "{has_wiki,default_branch:.default_branch}"
+git ls-remote https://github.com/<owner>/<repo>.wiki.git
+```
+
+Fallback:
+- jezeli backend Wiki nadal nie odpowiada, trzymaj dokumentacje w `docs/` i publikuj przez GitHub Pages:
+  - `https://piotrgrechuta-web.github.io/epu2pl/`

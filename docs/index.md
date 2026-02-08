@@ -11,6 +11,7 @@ To jest strona startowa dla GitHub Pages (`/docs`).
 5. [CI/CD i jakosc](05-CI-CD-i-Jakosc.md)
 6. [Troubleshooting](06-Troubleshooting.md)
 7. [Roadmapa i kontrybucje](07-Roadmapa-i-kontrybucje.md)
+8. [Status UI i Wiki/Pages](08-Status-UI-i-Wiki.md)
 
 ## Zrodla
 

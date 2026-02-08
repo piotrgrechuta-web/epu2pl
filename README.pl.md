@@ -93,6 +93,8 @@ Dzieki temu zachowanie logiki runtime jest synchronizowane miedzy wariantami.
 - manual uzytkownika Tkinter (PL): `project-tkinter/MANUAL_PL.md`
 - workflow Git na wielu komputerach: `project-tkinter/GIT_WORKFLOW_PL.md`
 - informacje o wsparciu: `SUPPORT_PL.md`
+- portal dokumentacji online: `https://piotrgrechuta-web.github.io/epu2pl/`
+- gdzie widac postep/UI/Wiki: `docs/08-Status-UI-i-Wiki.md`
 
 ## Wsparcie
 - Sponsor: https://github.com/sponsors/piotrgrechuta-web

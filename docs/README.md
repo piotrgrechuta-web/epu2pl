@@ -15,6 +15,7 @@ Uklad jest przygotowany tak, aby mozna go:
 5. [CI/CD i jakosc](05-CI-CD-i-Jakosc.md)
 6. [Troubleshooting](06-Troubleshooting.md)
 7. [Roadmapa i kontrybucje](07-Roadmapa-i-kontrybucje.md)
+8. [Status UI i Wiki/Pages](08-Status-UI-i-Wiki.md)
 
 ## Dokumenty zrodlowe
 
@@ -29,3 +30,4 @@ Uklad jest przygotowany tak, aby mozna go:
 - Branch protection: aktywna na `master` i `ep2pl`
 - Required checks: `python-checks`, `desktop-manifest-check`, `validate-pr-body`
 - PR template: wymusza wypelnione sekcje i checkliste
+- Dokumentacja online (GitHub Pages): `https://piotrgrechuta-web.github.io/epu2pl/`

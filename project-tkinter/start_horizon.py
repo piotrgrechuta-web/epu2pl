@@ -40,8 +40,7 @@ class HorizonGUI(base.TranslatorGUI):
 
     def _build_ui(self) -> None:
         self.root.title("Translator Studio Horizon")
-        outer = ttk.Frame(self.root, padding=18, style="TFrame")
-        outer.pack(fill="both", expand=True)
+        outer = self._create_scrollable_root(padding=18)
 
         header = ttk.Frame(outer, style="Card.TFrame", padding=(18, 14))
         header.pack(fill="x")

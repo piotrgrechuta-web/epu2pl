@@ -65,8 +65,7 @@ class StudioSuiteWindow:
         self.gui = gui
         self.win = tk.Toplevel(gui.root)
         self.win.title(self.gui.tr("studio.title", "Studio Tools"))
-        self.win.geometry("1200x820")
-        self.win.minsize(1020, 700)
+        self.gui._configure_window_bounds(self.win, preferred_w=1200, preferred_h=820, min_w=760, min_h=520, maximize=True)
         self.db_path = gui.workdir / "translator_studio.db"
         self._tooltips: List[Any] = []
         seg_mode = str(self.gui.db.get_setting("studio_segment_mode", "auto") or "auto").strip().lower()

@@ -98,6 +98,8 @@ This keeps core runtime behavior synchronized across both variants.
 - multi-device Git workflow: `project-tkinter/GIT_WORKFLOW_PL.md`
 - support info: `SUPPORT_PL.md`
 - docs index (Wiki/Pages ready): `docs/README.md`
+- online docs portal: `https://piotrgrechuta-web.github.io/epu2pl/`
+- where progress/UI/Wiki are visible: `docs/08-Status-UI-i-Wiki.md`
 
 ## Support
 - Sponsor: https://github.com/sponsors/piotrgrechuta-web
