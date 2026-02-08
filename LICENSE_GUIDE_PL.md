@@ -1,38 +1,34 @@
 # Licencja - proste wyjasnienie i przyklady
 
-Ten projekt jest udostepniony na licencji `PolyForm Noncommercial 1.0.0`.
+Ten projekt jest udostepniony na:
+`EPUB Translator Studio Personal Use License v1.0`.
 
-W skrocie:
-- mozna kopiowac kod,
-- mozna modyfikowac kod,
-- mozna uruchamiac projekt,
-- ale tylko w celach niekomercyjnych.
+To jest model source-available, a nie open source OSI/FSF.
+
+## W skrocie
+
+1. Prywatne uzycie niezmienionej wersji jest darmowe.
+2. Modyfikacja kodu wymaga pisemnej zgody autora.
+3. Redystrybucja wymaga pisemnej zgody autora.
+4. Uzycie komercyjne wymaga podpisanej umowy komercyjnej.
 
 Pelne zasady sa w `LICENSE`.
-Dodatkowe oznaczenia autora i wymagane noty sa w `NOTICE`.
+Sciezka komercyjna jest opisana w `COMMERCIAL_LICENSE.md`.
 
 ## Co jest dozwolone (przyklady)
 
-1. Uzywasz projektu prywatnie do nauki.
-2. Robisz fork i testujesz we wlasnym hobby projekcie.
-3. Szkola lub organizacja non-profit wykorzystuje narzedzie edukacyjnie.
-4. Modyfikujesz kod lokalnie i dzielisz sie poprawkami, bez pobierania oplat.
+1. Pobranie i uruchamianie aplikacji prywatnie na swoim komputerze.
+2. Uzywanie niezmienionej wersji do prywatnej pracy z EPUB.
+3. Trzymanie lokalnych kopii zapasowych do uzytku prywatnego.
 
 ## Co nie jest dozwolone (przyklady)
 
-1. Sprzedaz aplikacji lub dostepu do niej.
-2. Oferowanie platnej uslugi opartej na tym kodzie.
-3. Dolaczenie kodu do komercyjnego produktu lub SaaS.
-4. Wykorzystanie kodu do celow biznesowych nastawionych na zysk.
-
-## Co trzeba zachowac przy kopiowaniu/forku
-
-1. Plik `LICENSE`.
-2. Plik `NOTICE` (w tym linie `Required Notice:`).
-3. Informacje o autorze z `AUTHORS`.
+1. Uzywanie aplikacji w platnej usludze lub workflow firmy.
+2. Dolaczanie kodu do SaaS/produktu komercyjnego.
+3. Publikowanie forkow, zmodyfikowanych wersji lub przepakowanych instalatorow.
+4. Usuwanie informacji o autorze i not prawnych.
 
 ## Wazne
 
-Ten dokument jest praktycznym opisem dla uzytkownika.
-W przypadku sporu obowiazuje pelny tekst licencji z pliku `LICENSE`.
-
+Ten dokument jest praktycznym opisem.
+W przypadku sporu obowiazuje pelny tekst z pliku `LICENSE`.

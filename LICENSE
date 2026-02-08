@@ -1,131 +1,98 @@
-# PolyForm Noncommercial License 1.0.0
+EPUB Translator Studio Personal Use License v1.0
+Copyright (c) 2026 Piotr Grechuta
 
-<https://polyformproject.org/licenses/noncommercial/1.0.0>
+IMPORTANT: This is source-available software. It is not open source software
+as defined by OSI/FSF.
 
-## Acceptance
+By using, downloading, accessing, or running this software, you agree to this
+license.
 
-In order to get any license under these terms, you must agree
-to them as both strict obligations and conditions to all
-your licenses.
+1. Definitions
 
-## Copyright License
+  1.1 "Software" means the source code, binaries, documentation, and related
+      files in this repository.
 
-The licensor grants you a copyright license for the
-software to do everything you might do with the software
-that would otherwise infringe the licensor's copyright
-in it for any permitted purpose.  However, you may
-only distribute the software according to [Distribution
-License](#distribution-license) and make changes or new works
-based on the software according to [Changes and New Works
-License](#changes-and-new-works-license).
+  1.2 "Licensor" means Piotr Grechuta, the copyright owner.
 
-## Distribution License
+  1.3 "Personal Use" means private, non-commercial use by a natural person for
+      personal purposes, with no direct or indirect commercial benefit.
 
-The licensor grants you an additional copyright license
-to distribute copies of the software.  Your license
-to distribute covers distributing the software with
-changes and new works permitted by [Changes and New Works
-License](#changes-and-new-works-license).
+  1.4 "Commercial Use" means any use by or for a business, organization, or
+      revenue-generating activity, including internal business operations,
+      client services, SaaS/hosted offerings, paid support, paid distribution,
+      OEM/white-label use, or any use connected to commercial advantage.
 
-## Notices
+2. Personal Use Grant (Free)
 
-You must ensure that anyone who gets a copy of any part of
-the software from you also gets a copy of these terms or the
-URL for them above, as well as copies of any plain-text lines
-beginning with `Required Notice:` that the licensor provided
-with the software.  For example:
+  2.1 Licensor grants you a limited, revocable, non-exclusive,
+      non-transferable, non-sublicensable license to use unmodified copies of
+      the Software for Personal Use only.
 
-> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+  2.2 You may make a reasonable number of local backup copies for your own
+      Personal Use.
 
-## Changes and New Works License
+3. Restrictions
 
-The licensor grants you an additional copyright license to
-make changes and new works based on the software for any
-permitted purpose.
+  Unless Licensor gives prior written permission, you may not:
 
-## Patent License
+  3.1 modify, adapt, translate, reverse engineer, decompile, disassemble, or
+      create derivative works from the Software;
 
-The licensor grants you a patent license for the software that
-covers patent claims the licensor can license, or becomes able
-to license, that you would infringe by using the software.
+  3.2 redistribute, publish, sublicense, rent, lease, lend, sell, or otherwise
+      transfer the Software (in source or binary form) to third parties;
 
-## Noncommercial Purposes
+  3.3 use the Software for Commercial Use;
 
-Any noncommercial purpose is a permitted purpose.
+  3.4 remove or alter copyright, attribution, or legal notices.
 
-## Personal Uses
+4. Commercial Licensing
 
-Personal use for research, experiment, and testing for
-the benefit of public knowledge, personal study, private
-entertainment, hobby projects, amateur pursuits, or religious
-observance, without any anticipated commercial application,
-is use for a permitted purpose.
+  4.1 Any Commercial Use requires a separate written commercial license
+      agreement with Licensor, agreed before Commercial Use begins.
 
-## Noncommercial Organizations
+  4.2 No Commercial Use rights are granted by this license.
 
-Use by any charitable organization, educational institution,
-public research organization, public safety or health
-organization, environmental protection organization,
-or government institution is use for a permitted purpose
-regardless of the source of funding or obligations resulting
-from the funding.
+  4.3 Commercial terms (scope, fee, support, warranty, redistribution rights)
+      are negotiated case by case and are effective only if signed by Licensor.
 
-## Fair Use
+5. Ownership
 
-You may have "fair use" rights for the software under the
-law. These terms do not limit them.
+  5.1 The Software is licensed, not sold.
 
-## No Other Rights
+  5.2 All intellectual property rights remain with Licensor.
 
-These terms do not allow you to sublicense or transfer any of
-your licenses to anyone else, or prevent the licensor from
-granting licenses to anyone else.  These terms do not imply
-any other licenses.
+6. Contributions and Pull Requests
 
-## Patent Defense
+  6.1 Licensor may reject any contribution for any reason.
 
-If you make any written claim that the software infringes or
-contributes to infringement of any patent, your patent license
-for the software granted under these terms ends immediately. If
-your company makes such a claim, your patent license ends
-immediately for work on behalf of your company.
+  6.2 Submitting a contribution does not grant you any ownership in the
+      Software.
 
-## Violations
+  6.3 Licensor may require a separate written agreement (for example CLA or
+      assignment) before accepting contributions.
 
-The first time you are notified in writing that you have
-violated any of these terms, or done anything with the software
-not covered by your licenses, your licenses can nonetheless
-continue if you come into full compliance with these terms,
-and take practical steps to correct past violations, within
-32 days of receiving notice.  Otherwise, all your licenses
-end immediately.
+7. Termination
 
-## No Liability
+  7.1 This license terminates automatically if you violate any term.
 
-***As far as the law allows, the software comes as is, without
-any warranty or condition, and the licensor will not be liable
-to you for any damages arising out of these terms or the use
-or nature of the software, under any kind of legal claim.***
+  7.2 On termination, you must stop using the Software and delete all copies in
+      your possession or control.
 
-## Definitions
+8. Disclaimer of Warranty
 
-The **licensor** is the individual or entity offering these
-terms, and the **software** is the software the licensor makes
-available under these terms.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
 
-**You** refers to the individual or entity agreeing to these
-terms.
+9. Limitation of Liability
 
-**Your company** is any legal entity, sole proprietorship,
-or other kind of organization that you work for, plus all
-organizations that have control over, are under the control of,
-or are under common control with that organization.  **Control**
-means ownership of substantially all the assets of an entity,
-or the power to direct its management and policies by vote,
-contract, or otherwise.  Control can be direct or indirect.
+  TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR IS NOT LIABLE FOR ANY CLAIM,
+  DAMAGES, OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT, OR OTHERWISE, ARISING
+  FROM OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 
-**Your licenses** are all the licenses granted to you for the
-software under these terms.
+10. Contact
 
-**Use** means anything you do with the software requiring one
-of your licenses.
+  Commercial licensing requests: see COMMERCIAL_LICENSE.md
+  Project owner profile: https://github.com/piotrgrechuta-web
+

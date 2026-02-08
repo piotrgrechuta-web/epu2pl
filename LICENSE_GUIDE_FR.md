@@ -1,38 +1,34 @@
 # Licence - explication simple et exemples
 
-Ce projet est distribue sous `PolyForm Noncommercial 1.0.0`.
+Ce projet est distribue sous:
+`EPUB Translator Studio Personal Use License v1.0`.
 
-En bref:
-- vous pouvez copier le code,
-- vous pouvez modifier le code,
-- vous pouvez executer le projet,
-- mais uniquement pour des usages non commerciaux.
+C'est du source-available, pas de l'open source OSI/FSF.
 
-Les conditions completes sont dans `LICENSE`.
-Les mentions auteur obligatoires sont dans `NOTICE`.
+## En bref
+
+1. L'usage prive de copies non modifiees est gratuit.
+2. Modifier le code sans autorisation ecrite n'est pas autorise.
+3. Redistribuer sans autorisation ecrite n'est pas autorise.
+4. L'usage commercial exige une licence commerciale signee.
+
+Le texte complet est dans `LICENSE`.
+Le processus commercial est dans `COMMERCIAL_LICENSE.md`.
 
 ## Autorise (exemples)
 
-1. Usage personnel pour apprendre et tester.
-2. Fork pour hobby ou tests prives.
-3. Usage interne education/nonprofit.
-4. Partage des correctifs sans facturation.
+1. Telecharger et executer l'app sur votre machine personnelle.
+2. Utiliser la version non modifiee pour votre travail EPUB prive.
+3. Garder des sauvegardes privees locales.
 
 ## Non autorise (exemples)
 
-1. Vente de l'app ou acces payant.
-2. Service payant base sur ce code.
-3. Integration dans un produit commercial ou SaaS.
-4. Usage business pour generer du profit.
-
-## A conserver dans les copies/forks
-
-1. `LICENSE`
-2. `NOTICE` (avec lignes `Required Notice:`)
-3. `AUTHORS`
+1. Utiliser le logiciel dans un service payant ou workflow d'entreprise.
+2. Integrer le code dans un SaaS ou produit commercial.
+3. Publier des forks, versions modifiees ou installateurs repackages.
+4. Supprimer les mentions d'auteur ou mentions legales.
 
 ## Important
 
 Ce fichier est un guide pratique.
-En cas de conflit, `LICENSE` reste le texte legal applicable.
-
+En cas de conflit, `LICENSE` est le texte legal applicable.
