@@ -3666,8 +3666,14 @@ class TextEditorWindow:
         return None
 
     def _assert_tokens_intact(self, text: str, token_map: Dict[str, str]) -> Tuple[bool, str]:
+        _ = text
         expected = list(token_map.keys())
-        found = [m.group(0) for m in INLINE_TOKEN_RE.finditer(text)]
+        ranges = self.editor.tag_ranges("InlineToken")
+        found: List[str] = []
+        for i in range(0, len(ranges), 2):
+            start = str(ranges[i])
+            end = str(ranges[i + 1])
+            found.append(self.editor.get(start, end))
         if found == expected:
             return True, ""
         return False, self.gui.tr(
