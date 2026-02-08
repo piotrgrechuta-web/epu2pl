@@ -3,14 +3,14 @@
 Gotowy pakiet ustawien strony repo pod widocznosc i sponsorowanie.
 
 Repo:
-- https://github.com/piotrgrechuta-web/epu2pl
+- https://github.com/piotrgrechuta-web/epub-translator-studio
 
 ## 1) Description (GitHub -> About)
 
 Wklej:
 
 ```text
-Desktop toolkit for AI-assisted EPUB translation, editing and QA workflows (Tkinter + Electron/FastAPI).
+Desktop toolkit for AI-assisted EPUB translation, editing and QA workflows (Tkinter).
 ```
 
 ## 2) Website (GitHub -> About)
@@ -18,7 +18,7 @@ Desktop toolkit for AI-assisted EPUB translation, editing and QA workflows (Tkin
 Wklej:
 
 ```text
-https://github.com/piotrgrechuta-web/epu2pl/releases
+https://github.com/piotrgrechuta-web/epub-translator-studio/releases
 ```
 
 ## 3) Topics (GitHub -> About)
@@ -36,8 +36,6 @@ translation-memory
 qa
 python
 tkinter
-electron
-fastapi
 localization
 epubcheck
 ```

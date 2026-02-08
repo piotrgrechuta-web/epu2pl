@@ -1,5 +1,8 @@
 __pycache__/
 *.py[cod]
+.venv/
+venv/
+node_modules/
 
 # Runtime/cache outputs
 cache_*.jsonl
@@ -16,8 +19,6 @@ translator_studio.db-*
 project-tkinter/translator_studio.db
 project-tkinter/translator_studio.db-*
 project-tkinter/translator_studio.db.init.lock
-project-web-desktop/backend/translator_studio.db
-project-web-desktop/backend/translator_studio.db-*
 
 # Local app/session settings
 .last_session.json
@@ -27,5 +28,3 @@ project-web-desktop/backend/translator_studio.db-*
 AIza*
 *.key
 *.secret
-
-project-web-desktop/desktop/node_modules/electron/dist/electron.exe
