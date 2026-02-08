@@ -106,9 +106,10 @@ Dzieki temu zachowanie logiki runtime jest synchronizowane miedzy wariantami.
 - gotowy szkic pierwszego release (PL): `.github/RELEASE_DRAFT_PL.md`
 
 ## Licencja
-- Licencja: `PolyForm Noncommercial 1.0.0` (`LICENSE`)
-- Mozna kopiowac i modyfikowac kod do celow niekomercyjnych.
-- Przy kopiowaniu/forku trzeba zachowac informacje o autorze i Required Notice (`NOTICE`, `AUTHORS`).
+- Licencja: `EPUB Translator Studio Personal Use License v1.0` (`LICENSE`)
+- Ten projekt jest source-available i nie jest open source (OSI/FSF).
+- Darmowe jest prywatne uzycie niezmienionej wersji.
+- Kazda modyfikacja, redystrybucja lub uzycie komercyjne wymaga pisemnej zgody (`COMMERCIAL_LICENSE.md`).
 - Proste przyklady:
   - EN: `LICENSE_GUIDE_EN.md`
   - PL: `LICENSE_GUIDE_PL.md`

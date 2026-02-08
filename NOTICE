@@ -1,11 +1,12 @@
-Required Notice: Copyright (c) 2026 Piotr Grechuta.
-Required Notice: Attribution to the original creator of EPUB Translator Studio must be preserved in redistributions and derivative works.
+EPUB Translator Studio
+Copyright (c) 2026 Piotr Grechuta
 
-Project: EPUB Translator Studio
-Creator: Piotr Grechuta (GitHub: piotrgrechuta-web)
+Licensing summary:
+- Personal use of unmodified copies is free.
+- Modification, redistribution, and commercial use require prior written
+  permission from the licensor.
+- Commercial terms are negotiated individually.
 
-Please do not remove or alter creator attribution, copyright notices,
-or Required Notice lines in this repository and its derivative copies.
-
-If you modify files, clearly mark your changes and date them.
-
+See:
+- LICENSE
+- COMMERCIAL_LICENSE.md

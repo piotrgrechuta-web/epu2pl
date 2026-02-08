@@ -45,7 +45,8 @@ cd project-web-desktop
 - Support Info (PL): `SUPPORT_PL.md`
 
 ## Lizenz
-- Lizenz: `PolyForm Noncommercial 1.0.0` (`LICENSE`)
-- Kopieren und Aendern nur fuer nichtkommerzielle Zwecke.
-- Hinweise auf Urheber und Required Notice behalten (`NOTICE`, `AUTHORS`).
+- Lizenz: `EPUB Translator Studio Personal Use License v1.0` (`LICENSE`)
+- Dieses Projekt ist source-available und kein OSI/FSF Open Source.
+- Kostenfrei ist nur private Nutzung unveraenderter Kopien.
+- Jede Aenderung, Weitergabe oder kommerzielle Nutzung braucht eine vorherige schriftliche Genehmigung (`COMMERCIAL_LICENSE.md`).
 - Praxisbeispiele (DE): `LICENSE_GUIDE_DE.md`

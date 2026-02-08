@@ -1,38 +1,34 @@
 # License - simple explanation and examples
 
-This project is distributed under `PolyForm Noncommercial 1.0.0`.
+This project is distributed under:
+`EPUB Translator Studio Personal Use License v1.0`.
 
-In short:
-- you can copy the code,
-- you can modify the code,
-- you can run the project,
-- but only for noncommercial purposes.
+This is source-available software, not OSI/FSF open source.
+
+## In short
+
+1. Personal private use of unmodified copies is free.
+2. Modification is not allowed without written permission.
+3. Redistribution is not allowed without written permission.
+4. Commercial use is not allowed without a signed commercial agreement.
 
 Full legal terms are in `LICENSE`.
-Required author notices are in `NOTICE`.
+Commercial process is in `COMMERCIAL_LICENSE.md`.
 
 ## Allowed (examples)
 
-1. Personal learning and experimentation.
-2. Forking for hobby or private testing.
-3. Educational or nonprofit internal use.
-4. Sharing fixes without charging users.
+1. Download and run the app privately on your own machine.
+2. Use the unmodified app for personal EPUB work.
+3. Keep local personal backups.
 
 ## Not allowed (examples)
 
-1. Selling the app or paid access to it.
-2. Paid service built on this code.
-3. Including this code in a commercial product or SaaS.
-4. Business use intended for profit.
-
-## What must be preserved in copies/forks
-
-1. `LICENSE`
-2. `NOTICE` (including `Required Notice:` lines)
-3. `AUTHORS`
+1. Using the software in a paid service or company workflow.
+2. Shipping the code in a SaaS/product bundle.
+3. Publishing forks, modified versions, or repackaged installers.
+4. Removing author/legal notices.
 
 ## Important
 
 This file is a practical guide.
 If there is any conflict, `LICENSE` is the binding legal text.
-

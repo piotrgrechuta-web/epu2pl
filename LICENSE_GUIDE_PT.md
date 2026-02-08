@@ -1,38 +1,34 @@
 # Licenca - explicacao simples e exemplos
 
-Este projeto e distribuido sob `PolyForm Noncommercial 1.0.0`.
+Este projeto e distribuido sob:
+`EPUB Translator Studio Personal Use License v1.0`.
 
-Em resumo:
-- voce pode copiar o codigo,
-- voce pode modificar o codigo,
-- voce pode executar o projeto,
-- mas apenas para fins nao comerciais.
+Este modelo e source-available, nao open source OSI/FSF.
+
+## Em resumo
+
+1. O uso privado de copias sem modificacao e gratuito.
+2. Modificar o codigo sem autorizacao escrita nao e permitido.
+3. Redistribuir sem autorizacao escrita nao e permitido.
+4. Uso comercial so com licenca comercial assinada.
 
 As regras completas estao em `LICENSE`.
-As notas obrigatorias de autoria estao em `NOTICE`.
+O processo comercial esta em `COMMERCIAL_LICENSE.md`.
 
 ## Permitido (exemplos)
 
-1. Uso pessoal para estudo e testes.
-2. Fork para hobby ou testes privados.
-3. Uso interno em educacao ou nonprofit.
-4. Compartilhar melhorias sem cobranca.
+1. Baixar e executar o app no seu computador pessoal.
+2. Usar a versao sem modificacao para trabalho EPUB privado.
+3. Manter backups privados locais.
 
 ## Nao permitido (exemplos)
 
-1. Vender o app ou acesso pago.
-2. Servico pago baseado neste codigo.
-3. Incluir este codigo em produto comercial ou SaaS.
-4. Uso empresarial com objetivo de lucro.
-
-## O que manter em copias/forks
-
-1. `LICENSE`
-2. `NOTICE` (incluindo linhas `Required Notice:`)
-3. `AUTHORS`
+1. Usar o software em servico pago ou fluxo de empresa.
+2. Integrar o codigo em SaaS ou produto comercial.
+3. Publicar forks, versoes modificadas ou instaladores reempacotados.
+4. Remover avisos de autoria ou avisos legais.
 
 ## Importante
 
 Este arquivo e um guia pratico.
 Em caso de conflito, `LICENSE` e o texto legal vinculante.
-

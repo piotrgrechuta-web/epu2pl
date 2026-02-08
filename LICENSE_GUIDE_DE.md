@@ -1,38 +1,34 @@
 # Lizenz - einfache erklaerung und beispiele
 
-Dieses Projekt steht unter `PolyForm Noncommercial 1.0.0`.
+Dieses Projekt wird bereitgestellt unter:
+`EPUB Translator Studio Personal Use License v1.0`.
 
-Kurz gesagt:
-- du darfst den Code kopieren,
-- du darfst den Code aendern,
-- du darfst das Projekt ausfuehren,
-- aber nur fuer nichtkommerzielle Zwecke.
+Das ist source-available, aber kein OSI/FSF Open Source.
 
-Die vollstaendigen Regeln stehen in `LICENSE`.
-Pflicht-Hinweise zum Autor stehen in `NOTICE`.
+## Kurzfassung
+
+1. Private Nutzung unveraenderter Kopien ist kostenlos.
+2. Aenderungen am Code sind ohne schriftliche Erlaubnis nicht erlaubt.
+3. Weitergabe/Redistribution ist ohne schriftliche Erlaubnis nicht erlaubt.
+4. Kommerzielle Nutzung ist nur mit unterschriebener kommerzieller Lizenz erlaubt.
+
+Volle Regeln stehen in `LICENSE`.
+Der kommerzielle Weg steht in `COMMERCIAL_LICENSE.md`.
 
 ## Erlaubt (beispiele)
 
-1. Private Nutzung zum Lernen und Testen.
-2. Fork fuer Hobbyprojekt.
-3. Nutzung in Schule oder Non-Profit-Organisation.
-4. Weitergabe von Verbesserungen ohne Bezahlung.
+1. App privat auf dem eigenen Rechner nutzen.
+2. Unveraenderte Version fuer private EPUB-Arbeit verwenden.
+3. Lokale private Backups behalten.
 
 ## Nicht erlaubt (beispiele)
 
-1. Verkauf der App oder bezahlter Zugang.
-2. Bezahlter Dienst auf Basis dieses Codes.
-3. Integration in kommerzielles Produkt oder SaaS.
-4. Nutzung fuer gewinnorientierte Geschaeftszwecke.
-
-## Was in Kopien/Forks erhalten bleiben muss
-
-1. `LICENSE`
-2. `NOTICE` (inklusive `Required Notice:` Zeilen)
-3. `AUTHORS`
+1. Einsatz im bezahlten Service oder im Unternehmens-Workflow.
+2. Einbau in SaaS/kommerzielles Produkt.
+3. Veroeffentlichung von Forks, modifizierten Versionen oder repackten Installern.
+4. Entfernen von Autor- oder Rechtshinweisen.
 
 ## Wichtig
 
-Diese Datei ist nur eine praktische Hilfe.
-Bei Konflikten gilt der verbindliche Text in `LICENSE`.
-
+Diese Datei ist eine praktische Hilfe.
+Bei Konflikten gilt `LICENSE` als verbindlicher Rechtstext.

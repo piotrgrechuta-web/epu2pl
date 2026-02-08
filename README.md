@@ -2,7 +2,7 @@
 
 [![PR checks](https://github.com/piotrgrechuta-web/epu2pl/actions/workflows/pr-checks.yml/badge.svg?branch=master)](https://github.com/piotrgrechuta-web/epu2pl/actions/workflows/pr-checks.yml)
 [![Release](https://img.shields.io/github/v/release/piotrgrechuta-web/epu2pl?display_name=tag)](https://github.com/piotrgrechuta-web/epu2pl/releases)
-[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-orange.svg)](LICENSE)
+[![License: Personal Use Only](https://img.shields.io/badge/license-Personal%20Use%20Only-red.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](project-web-desktop/backend/requirements.txt)
 
 Language: **English** | [Polski](README.pl.md) | [Deutsch](README.de.md) | [Espanol](README.es.md) | [Francais](README.fr.md) | [Portugues](README.pt.md)
@@ -111,9 +111,10 @@ This keeps core runtime behavior synchronized across both variants.
 - ready first release draft (PL): `.github/RELEASE_DRAFT_PL.md`
 
 ## License
-- License: `PolyForm Noncommercial 1.0.0` (`LICENSE`)
-- You can copy and modify the code for noncommercial purposes.
-- Keep creator attribution and required notices in redistributions (`NOTICE`, `AUTHORS`).
+- License: `EPUB Translator Studio Personal Use License v1.0` (`LICENSE`)
+- This project is source-available, not OSI/FSF open source.
+- Free for personal private use of unmodified copies.
+- Any modification, redistribution, or commercial use requires prior written agreement (`COMMERCIAL_LICENSE.md`).
 - Practical examples:
   - EN: `LICENSE_GUIDE_EN.md`
   - PL: `LICENSE_GUIDE_PL.md`
