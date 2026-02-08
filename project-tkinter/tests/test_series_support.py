@@ -154,3 +154,33 @@ def test_project_db_repairs_schema_drift_on_existing_db(tmp_path: Path) -> None:
     assert "source_lang" in cols
     assert "target_lang" in cols
     db.close()
+
+
+def test_project_db_series_update_and_delete_detaches_projects(tmp_path: Path) -> None:
+    db = ProjectDB(tmp_path / "studio.db")
+    sid = db.ensure_series("Saga A", source="manual")
+    pid = db.create_project(
+        "Tom 1",
+        {
+            "series_id": sid,
+            "volume_no": 1.0,
+            "input_epub": str(tmp_path / "book.epub"),
+            "output_translate_epub": str(tmp_path / "book_pl.epub"),
+            "output_edit_epub": str(tmp_path / "book_pl_edit.epub"),
+        },
+    )
+    assert db.count_projects_for_series(sid) == 1
+
+    db.update_series(sid, name="Saga Alfa", regenerate_slug=False)
+    row = db.get_series(sid)
+    assert row is not None
+    assert str(row["name"]) == "Saga Alfa"
+
+    deleted = db.delete_series(sid)
+    assert deleted == 1
+    assert db.get_series(sid) is None
+    updated_project = db.get_project(pid)
+    assert updated_project is not None
+    assert updated_project["series_id"] is None
+    assert updated_project["volume_no"] is None
+    db.close()

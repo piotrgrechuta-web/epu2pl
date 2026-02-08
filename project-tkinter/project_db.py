@@ -800,6 +800,10 @@ class ProjectDB:
         row = self.conn.execute("SELECT 1 FROM series WHERE slug = ?", (slug,)).fetchone()
         return row is not None
 
+    def _series_slug_exists_other(self, slug: str, series_id: int) -> bool:
+        row = self.conn.execute("SELECT 1 FROM series WHERE slug = ? AND id <> ?", (slug, int(series_id))).fetchone()
+        return row is not None
+
     def _next_series_slug(self, name: str) -> str:
         base = _slugify_name(name)
         slug = base
@@ -842,6 +846,65 @@ class ProjectDB:
         if row:
             return int(row["id"])
         return self.create_series(clean_name, source=source, notes=notes)
+
+    def count_projects_for_series(self, series_id: int) -> int:
+        row = self.conn.execute("SELECT COUNT(*) AS c FROM projects WHERE series_id = ?", (int(series_id),)).fetchone()
+        return int(row["c"] or 0) if row else 0
+
+    def update_series(
+        self,
+        series_id: int,
+        *,
+        name: Optional[str] = None,
+        notes: Optional[str] = None,
+        source: Optional[str] = None,
+        regenerate_slug: bool = False,
+    ) -> None:
+        row = self.get_series(int(series_id))
+        if row is None:
+            raise ValueError("Series not found")
+
+        new_name = str(row["name"] or "").strip()
+        if name is not None:
+            new_name = str(name or "").strip()
+            if not new_name:
+                raise ValueError("Series name is required")
+
+        new_notes = str(row["notes"] or "")
+        if notes is not None:
+            new_notes = str(notes or "")
+
+        new_source = str(row["source"] or "manual")
+        if source is not None and str(source).strip():
+            new_source = str(source).strip()
+
+        new_slug = str(row["slug"] or "")
+        if regenerate_slug and new_name and new_name.lower() != str(row["name"] or "").strip().lower():
+            base = _slugify_name(new_name)
+            candidate = base
+            i = 2
+            while self._series_slug_exists_other(candidate, int(series_id)):
+                candidate = f"{base}-{i}"
+                i += 1
+            new_slug = candidate
+
+        now = _now_ts()
+        self.conn.execute(
+            """
+            UPDATE series
+            SET slug = ?, name = ?, source = ?, notes = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (new_slug, new_name, new_source, new_notes, now, int(series_id)),
+        )
+        self.conn.commit()
+
+    def delete_series(self, series_id: int) -> int:
+        sid = int(series_id)
+        self.conn.execute("UPDATE projects SET series_id = NULL, volume_no = NULL WHERE series_id = ?", (sid,))
+        cur = self.conn.execute("DELETE FROM series WHERE id = ?", (sid,))
+        self.conn.commit()
+        return int(cur.rowcount or 0)
 
     def list_projects(self) -> List[sqlite3.Row]:
         return list(
@@ -1334,6 +1397,5 @@ class ProjectDB:
         self.set_setting("active_project_id", project_id)
         self.set_setting("legacy_imported_v1", True)
         return project_id
-
 
 

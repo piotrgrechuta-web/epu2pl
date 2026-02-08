@@ -192,6 +192,21 @@ Po udanym runie aplikacja moze dopisac propozycje terminow serii na podstawie TM
 1. tworzy rekord w tabeli `series` (`translator_studio.db`),
 2. inicjalizuje lokalny magazyn `data/series/<slug>/series.db`.
 
+### `Edytuj serie`
+- Po co: zmiana nazwy serii bez przepinania projektow.
+- Jak: wybierz serie z listy, klik `Edytuj serie`, wpisz nowa nazwe.
+- Wplyw:
+1. aktualizuje nazwe w tabeli `series`,
+2. zachowuje przypisania projektow do tej serii.
+
+### `Usun serie`
+- Po co: usuniecie serii, gdy nie chcesz juz jej utrzymywac.
+- Jak: wybierz serie z listy i klik `Usun serie`.
+- Wplyw:
+1. usuwa rekord serii z `translator_studio.db`,
+2. automatycznie odpina wszystkie projekty od tej serii (`series_id=NULL`, `volume_no=NULL`),
+3. opcjonalnie usuwa lokalne dane serii z `data/series/<slug>/`.
+
 ### `Auto z EPUB`
 - Po co: automatyczne podpowiedzenie serii na podstawie metadanych EPUB (`OPF`).
 - Jak: po ustawieniu `Wejsciowy EPUB` kliknij `Auto z EPUB` i potwierdz przypisanie.
@@ -595,6 +610,8 @@ Typowy flow:
 | `Zapisz` | nic | `projects` update |
 | `Nowy` | nic | nowy rekord `projects` |
 | `Nowa seria` | tworzy `data/series/<slug>/series.db` | nowy rekord `series` |
+| `Edytuj serie` | aktualizuje metadane serii | update rekordu `series` |
+| `Usun serie` | opcjonalnie usuwa `data/series/<slug>/` | usuwa rekord `series`, odpina `projects.series_id` |
 | `Auto z EPUB` | nic | przypisuje `projects.series_id` i opcjonalnie `projects.volume_no` |
 | `Slownik serii` (approve/reject/add) | aktualizuje pliki pod `data/series/<slug>/` | zapis terminow/decydji w bazie serii (osobny SQLite) |
 | `Kolejkuj` | nic | status `projects` -> `pending` |

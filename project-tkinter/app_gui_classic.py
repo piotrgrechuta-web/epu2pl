@@ -86,7 +86,7 @@ def quote_arg(arg: str) -> str:
     return arg
 
 
-def simple_prompt(root: tk.Tk, title: str, label: str) -> Optional[str]:
+def simple_prompt(root: tk.Tk, title: str, label: str, *, default_value: str = "") -> Optional[str]:
     win = tk.Toplevel(root)
     win.title(title)
     win.transient(root)
@@ -96,10 +96,11 @@ def simple_prompt(root: tk.Tk, title: str, label: str) -> Optional[str]:
     frm = ttk.Frame(win, padding=12)
     frm.pack(fill="both", expand=True)
     ttk.Label(frm, text=label).pack(anchor="w")
-    var = tk.StringVar()
+    var = tk.StringVar(value=str(default_value or ""))
     entry = ttk.Entry(frm, textvariable=var, width=40)
     entry.pack(fill="x", pady=(6, 10))
     entry.focus_set()
+    entry.selection_range(0, "end")
 
     btn = ttk.Frame(frm)
     btn.pack(fill="x")
@@ -1051,6 +1052,8 @@ class TranslatorGUI:
         serbtn = ttk.Frame(card)
         serbtn.grid(row=2, column=2, padx=(self._theme_space("space_sm", 8), 0), pady=(8, 0), sticky="w")
         ttk.Button(serbtn, text=self.tr("button.new_series", "Nowa seria"), command=self._create_series, style="Secondary.TButton").pack(side="left")
+        ttk.Button(serbtn, text=self.tr("button.edit_series", "Edytuj serie"), command=self._edit_series, style="Secondary.TButton").pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
+        ttk.Button(serbtn, text=self.tr("button.delete_series", "Usun serie"), command=self._delete_series, style="Danger.TButton").pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
         ttk.Button(serbtn, text=self.tr("button.detect_series", "Auto z EPUB"), command=self._detect_series_for_input, style="Secondary.TButton").pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
         ttk.Button(serbtn, text=self.tr("button.series_terms", "Slownik serii"), command=self._open_series_terms_manager, style="Secondary.TButton").pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
 
@@ -1527,6 +1530,8 @@ class TranslatorGUI:
             return None
 
     def _on_series_selected(self) -> None:
+        if self._selected_series_id() is None:
+            self.volume_no_var.set("")
         self._save_project()
 
     def _create_series(self) -> None:
@@ -1549,6 +1554,106 @@ class TranslatorGUI:
         self._set_series_by_id(sid)
         self._save_project()
         self._set_status(self.tr("status.series_created", "Series created: {name}", name=name), "ready")
+
+    def _edit_series(self) -> None:
+        series_id = self._selected_series_id()
+        if series_id is None:
+            self._msg_info("Wybierz serie do edycji.")
+            return
+        row = self.db.get_series(series_id)
+        if row is None:
+            self._refresh_series()
+            self._msg_error("Nie znaleziono danych serii.")
+            return
+        current_name = str(row["name"] or "").strip()
+        new_name = simple_prompt(
+            self.root,
+            "Edytuj serie",
+            "Nazwa serii:",
+            default_value=current_name,
+        )
+        if new_name is None:
+            return
+        new_name = new_name.strip()
+        if not new_name:
+            self._msg_info("Nazwa serii nie moze byc pusta.")
+            return
+        if new_name == current_name:
+            return
+        try:
+            self.db.update_series(
+                series_id,
+                name=new_name,
+                source=str(row["source"] or "manual"),
+                notes=str(row["notes"] or ""),
+                regenerate_slug=False,
+            )
+            slug = str(row["slug"] or "").strip()
+            if slug:
+                self.series_store.ensure_series_db(slug, display_name=new_name)
+        except Exception as e:
+            self._msg_error(f"Nie udalo sie zaktualizowac serii:\n{e}")
+            return
+        self._refresh_series()
+        self._set_series_by_id(series_id)
+        self._save_project()
+        self._refresh_projects(select_current=True)
+        self._refresh_status_panel()
+        self._set_status(self.tr("status.series_updated", "Series updated: {name}", name=new_name), "ready")
+
+    def _delete_series(self) -> None:
+        series_id = self._selected_series_id()
+        if series_id is None:
+            self._msg_info("Wybierz serie do usuniecia.")
+            return
+        row = self.db.get_series(series_id)
+        if row is None:
+            self._refresh_series()
+            self._msg_error("Nie znaleziono danych serii.")
+            return
+        series_name = str(row["name"] or "").strip() or f"#{series_id}"
+        series_slug = str(row["slug"] or "").strip()
+        project_count = self.db.count_projects_for_series(series_id)
+        msg = (
+            f"Usunac serie '{series_name}'?\n\n"
+            f"Powiazane projekty: {project_count}\n"
+            f"Po usunieciu projekty zostana odpiete od tej serii."
+        )
+        if not self._ask_yes_no(msg, title="Usun serie"):
+            return
+
+        series_dir = self.series_store.series_dir(series_slug) if series_slug else None
+        delete_local_data = False
+        if series_dir is not None and series_dir.exists():
+            delete_local_data = self._ask_yes_no(
+                f"Czy usunac tez lokalne dane serii?\n{series_dir}",
+                title="Usun dane serii",
+            )
+
+        try:
+            deleted = self.db.delete_series(series_id)
+            if deleted <= 0:
+                self._msg_error("Nie udalo sie usunac serii.")
+                return
+        except Exception as e:
+            self._msg_error(f"Nie udalo sie usunac serii:\n{e}")
+            return
+
+        local_err = ""
+        if delete_local_data and series_dir is not None and series_dir.exists():
+            try:
+                shutil.rmtree(series_dir)
+            except Exception as e:
+                local_err = str(e)
+
+        self.volume_no_var.set("")
+        self._refresh_series()
+        self._refresh_projects(select_current=True)
+        self._refresh_status_panel()
+        self._save_project()
+        self._set_status(self.tr("status.series_deleted", "Series deleted: {name}", name=series_name), "ready")
+        if local_err:
+            self._msg_error(f"Seria usunieta, ale nie udalo sie usunac danych lokalnych:\n{local_err}")
 
     def _detect_series_for_input(self) -> None:
         in_path = Path((self.input_epub_var.get() or "").strip())
@@ -2067,7 +2172,7 @@ class TranslatorGUI:
         if pname_e in self.profile_name_to_id:
             pid_e = self.profile_name_to_id[pname_e]
         series_id = self._selected_series_id()
-        volume_no = self._parse_volume_no()
+        volume_no = self._parse_volume_no() if series_id is not None else None
         vals = {
             "series_id": series_id,
             "volume_no": volume_no,
@@ -3460,4 +3565,3 @@ class TextEditorWindow:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
