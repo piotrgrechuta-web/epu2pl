@@ -38,6 +38,14 @@ Wariant Tkinter (`start.py`, `start_horizon.py`, `studio_suite.py`):
 - menu kontekstowe pod prawym przyciskiem myszy w polach edycyjnych:
   - `Cofnij`, `Ponow`, `Wytnij`, `Kopiuj`, `Wklej`, `Usun`,
   - `Zaznacz wszystko`, `Wyczysc pole`.
+- wdrozono design tokens i role komponentow:
+  - przyciski `Primary/Secondary/Danger`,
+  - wspolne style kart (`Card.TLabelframe`) i helper-labelki.
+- dodano komunikaty inline (mniej popupow dla informacji) + skroty klawiaturowe:
+  - `Ctrl+S` zapis projektu,
+  - `Ctrl+R` start runu,
+  - `Ctrl+Q` kolejkowanie projektu,
+  - `F5` odswiezenie modeli.
 
 Wariant Web Desktop (`desktop/main.js`, `desktop/renderer/styles.css`):
 - okno Electron startuje na rozmiarze dopasowanym do ekranu i maksymalizuje sie po starcie,

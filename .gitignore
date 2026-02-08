@@ -7,6 +7,17 @@ debug/
 *.wip.epub
 *.partial.epub
 *.bak-*.epub
+*.checkpoint.json
+
+# Local runtime DB files
+translator_studio.db
+translator_studio.db-*
+*.db.init.lock
+project-tkinter/translator_studio.db
+project-tkinter/translator_studio.db-*
+project-tkinter/translator_studio.db.init.lock
+project-web-desktop/backend/translator_studio.db
+project-web-desktop/backend/translator_studio.db-*
 
 # Local app/session settings
 .last_session.json

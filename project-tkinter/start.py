@@ -47,6 +47,7 @@ from runtime_core import (
     list_google_models as core_list_google_models,
     list_ollama_models as core_list_ollama_models,
 )
+from ui_style import apply_app_theme
 
 APP_TITLE = "EPUB Translator Studio"
 SETTINGS_FILE = Path(__file__).resolve().with_name(".gui_settings.json")
@@ -178,12 +179,16 @@ class TranslatorGUI:
         self._root_scroll_frame: Optional[ttk.Frame] = None
         self._context_menu: Optional[tk.Menu] = None
         self._context_target: Optional[tk.Misc] = None
+        self._inline_notice_after_id: Optional[str] = None
+        self._inline_notice_label: Optional[ttk.Label] = None
+        self.ui_tokens: Dict[str, Any] = {}
 
         self._configure_main_window()
         self._setup_theme()
         self._build_vars()
         self._build_ui()
         self._install_context_menu()
+        self._install_keyboard_shortcuts()
         self._install_tooltips()
         self.db.import_legacy_gui_settings(SETTINGS_FILE)
         self._load_defaults()
@@ -195,25 +200,18 @@ class TranslatorGUI:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _setup_theme(self) -> None:
-        self.root.configure(bg="#eef3f7")
-        style = ttk.Style(self.root)
-        style.theme_use("clam")
-        style.configure("TFrame", background="#eef3f7")
-        style.configure("Card.TFrame", background="#ffffff", relief="flat")
-        style.configure("TLabel", background="#eef3f7", foreground="#1f2937", font=("Segoe UI", 10))
-        style.configure("Title.TLabel", background="#eef3f7", foreground="#0f172a", font=("Segoe UI Semibold", 18))
-        style.configure("Sub.TLabel", background="#eef3f7", foreground="#334155", font=("Segoe UI", 10))
-        style.configure("TButton", font=("Segoe UI", 10), padding=8)
-        style.configure("Accent.TButton", background="#0ea5a3", foreground="#ffffff")
-        style.map("Accent.TButton", background=[("active", "#0b8e8c")])
-        style.configure("TEntry", padding=6)
-        style.configure("TCombobox", padding=6)
-        style.configure("TLabelframe", background="#eef3f7")
-        style.configure("TLabelframe.Label", background="#eef3f7", foreground="#0f172a", font=("Segoe UI Semibold", 10))
-        style.configure("StatusReady.TLabel", background="#eef3f7", foreground="#475569", font=("Segoe UI", 10))
-        style.configure("StatusRun.TLabel", background="#eef3f7", foreground="#b45309", font=("Segoe UI Semibold", 10))
-        style.configure("StatusOk.TLabel", background="#eef3f7", foreground="#166534", font=("Segoe UI Semibold", 10))
-        style.configure("StatusErr.TLabel", background="#eef3f7", foreground="#b91c1c", font=("Segoe UI Semibold", 10))
+        self.ui_tokens = apply_app_theme(self.root, variant="base")
+
+    def _theme_color(self, key: str, default: str) -> str:
+        val = self.ui_tokens.get(key, default)
+        return str(val) if isinstance(val, str) else default
+
+    def _theme_space(self, key: str, default: int) -> int:
+        val = self.ui_tokens.get(key, default)
+        try:
+            return int(val)
+        except Exception:
+            return int(default)
 
     def _configure_main_window(self) -> None:
         self._configure_window_bounds(self.root, preferred_w=1200, preferred_h=820, min_w=760, min_h=520, maximize=True)
@@ -264,7 +262,7 @@ class TranslatorGUI:
         shell.columnconfigure(0, weight=1)
         shell.rowconfigure(0, weight=1)
 
-        bg = str(self.root.cget("bg") or "#eef3f7")
+        bg = self._theme_color("app_bg", str(self.root.cget("bg") or "#eef3f7"))
         canvas = tk.Canvas(shell, highlightthickness=0, borderwidth=0, background=bg)
         vbar = ttk.Scrollbar(shell, orient="vertical", command=canvas.yview)
         hbar = ttk.Scrollbar(shell, orient="horizontal", command=canvas.xview)
@@ -390,15 +388,78 @@ class TranslatorGUI:
         except Exception:
             pass
 
+    def _install_keyboard_shortcuts(self) -> None:
+        self.root.bind_all("<Control-s>", self._shortcut_save_project, add="+")
+        self.root.bind_all("<Control-S>", self._shortcut_save_project, add="+")
+        self.root.bind_all("<Control-r>", self._shortcut_start_run, add="+")
+        self.root.bind_all("<Control-R>", self._shortcut_start_run, add="+")
+        self.root.bind_all("<Control-q>", self._shortcut_queue_project, add="+")
+        self.root.bind_all("<Control-Q>", self._shortcut_queue_project, add="+")
+        self.root.bind_all("<F5>", self._shortcut_refresh_models, add="+")
+
+    def _shortcut_save_project(self, _: tk.Event) -> str:
+        self._save_project(notify_missing=True)
+        self._set_inline_notice(self.tr("status.project_saved", "Project saved"), level="info")
+        return "break"
+
+    def _shortcut_start_run(self, _: tk.Event) -> str:
+        if self.proc is not None:
+            self._set_inline_notice(self.tr("info.process_running", "Process is already running."), level="warn")
+            return "break"
+        self._start_process()
+        return "break"
+
+    def _shortcut_queue_project(self, _: tk.Event) -> str:
+        self._queue_current_project()
+        return "break"
+
+    def _shortcut_refresh_models(self, _: tk.Event) -> str:
+        self._refresh_models()
+        return "break"
+
+    def _set_inline_notice(self, message: str, *, level: str = "info", timeout_ms: int = 7000) -> None:
+        text = str(message or "").strip()
+        if not text:
+            return
+        if self._inline_notice_label is None:
+            return
+        style_map = {
+            "info": "InlineInfo.TLabel",
+            "warn": "InlineWarn.TLabel",
+            "error": "InlineErr.TLabel",
+        }
+        self.inline_notice_var.set(text)
+        self._inline_notice_label.configure(style=style_map.get(level, "InlineInfo.TLabel"))
+        if self._inline_notice_after_id is not None:
+            try:
+                self.root.after_cancel(self._inline_notice_after_id)
+            except Exception:
+                pass
+            self._inline_notice_after_id = None
+        if timeout_ms > 0:
+            self._inline_notice_after_id = self.root.after(timeout_ms, self._clear_inline_notice)
+
+    def _clear_inline_notice(self) -> None:
+        self.inline_notice_var.set("")
+        self._inline_notice_after_id = None
+
     def tr(self, key: str, default: str, **fmt: Any) -> str:
         return self.i18n.t(key, default, **fmt)
 
     def _msg_info(self, message: str, title: Optional[str] = None) -> None:
-        t = title or self.tr("mb.info", "Information")
-        messagebox.showinfo(t, message)
+        _ = title
+        text = str(message or "").strip()
+        if not text:
+            return
+        self._set_inline_notice(text, level="info")
+        self._set_status(text, "ready")
 
     def _msg_error(self, message: str, title: Optional[str] = None) -> None:
         t = title or self.tr("mb.error", "Error")
+        text = str(message or "").strip()
+        if text:
+            self._set_inline_notice(text, level="error", timeout_ms=10000)
+            self._set_status(text, "error")
         messagebox.showerror(t, message)
 
     def _ask_yes_no(self, message: str, title: Optional[str] = None) -> bool:
@@ -441,6 +502,7 @@ class TranslatorGUI:
         self.queue_status_var = tk.StringVar(value=self.tr("status.queue.idle", "Queue: idle"))
         self.status_counts_var = tk.StringVar(value="idle=0 | pending=0 | running=0 | error=0")
         self.status_var = tk.StringVar(value=self.tr("status.ready", "Gotowe"))
+        self.inline_notice_var = tk.StringVar(value="")
         self.progress_text_var = tk.StringVar(value=self.tr("status.progress.zero", "Postęp: 0 / 0"))
         self.phase_var = tk.StringVar(value=self.tr("status.phase.wait", "Etap: oczekiwanie"))
         self.progress_value_var = tk.DoubleVar(value=0.0)
@@ -449,26 +511,30 @@ class TranslatorGUI:
 
     def _build_ui(self) -> None:
         self.root.title(self.tr("app.title", APP_TITLE))
-        outer = self._create_scrollable_root(padding=16)
+        outer = self._create_scrollable_root(padding=self._theme_space("space_lg", 16))
+        section_gap = self._theme_space("space_md", 12)
+        card_gap = self._theme_space("space_sm", 8)
 
         ttk.Label(outer, text=self.tr("app.title", APP_TITLE), style="Title.TLabel").pack(anchor="w")
         ttk.Label(
             outer,
             text=self.tr("app.subtitle", "Nowoczesny panel do translacji EPUB (Ollama / Google) z zapisem ustawien i logiem na zywo."),
             style="Sub.TLabel",
-        ).pack(anchor="w", pady=(0, 12))
+        ).pack(anchor="w", pady=(0, section_gap))
         links = ttk.Frame(outer)
-        links.pack(anchor="w", pady=(0, 12))
+        links.pack(anchor="w", pady=(0, section_gap))
         ttk.Button(
             links,
             text=self.tr("button.support_project", "Wesprzyj projekt"),
             command=lambda: self._open_url(SUPPORT_URL),
+            style="Primary.TButton",
         ).pack(side="left")
         ttk.Button(
             links,
             text=self.tr("button.repo_online", "Repo online"),
             command=lambda: self._open_url(REPO_URL),
-        ).pack(side="left", padx=(8, 0))
+            style="Secondary.TButton",
+        ).pack(side="left", padx=(card_gap, 0))
         self._build_first_start_card(outer)
 
         top = ttk.Frame(outer)
@@ -477,7 +543,7 @@ class TranslatorGUI:
         top.columnconfigure(1, weight=2)
 
         left = ttk.Frame(top)
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, section_gap))
 
         right = ttk.Frame(top)
         right.grid(row=0, column=1, sticky="nsew")
@@ -498,12 +564,14 @@ class TranslatorGUI:
         self._build_run_card(right)
         self._build_log_card(right)
 
+        self._inline_notice_label = ttk.Label(outer, textvariable=self.inline_notice_var, style="InlineInfo.TLabel")
+        self._inline_notice_label.pack(fill="x", pady=(section_gap, 0))
         self.status_label = ttk.Label(outer, textvariable=self.status_var, style="StatusReady.TLabel")
-        self.status_label.pack(anchor="w", pady=(10, 0))
+        self.status_label.pack(anchor="w", pady=(card_gap, 0))
 
     def _build_first_start_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.first_start", "Pierwsze uruchomienie (wymagane)"), padding=12)
-        card.pack(fill="x", pady=(0, 12))
+        card = ttk.LabelFrame(parent, text=self.tr("section.first_start", "Pierwsze uruchomienie (wymagane)"), padding=12, style="Card.TLabelframe")
+        card.pack(fill="x", pady=(0, self._theme_space("space_md", 12)))
 
         ttk.Label(
             card,
@@ -522,8 +590,11 @@ class TranslatorGUI:
             height=12,
             wrap="word",
             font=("Consolas", 10),
-            bg="#f8fafc",
-            fg="#1f2937",
+            bg=self._theme_color("surface_bg", "#f8fafc"),
+            fg=self._theme_color("text", "#0f172a"),
+            insertbackground=self._theme_color("text", "#0f172a"),
+            highlightbackground=self._theme_color("border", "#cbd5e1"),
+            highlightcolor=self._theme_color("border", "#cbd5e1"),
             relief="solid",
             bd=1,
         )
@@ -537,14 +608,16 @@ class TranslatorGUI:
             btns,
             text=self.tr("button.copy_first_start", "Kopiuj instrukcje pierwszego uruchomienia"),
             command=self._copy_first_start_setup,
+            style="Secondary.TButton",
         )
         self.copy_setup_btn.pack(side="left")
         self.open_manual_btn = ttk.Button(
             btns,
             text=self.tr("button.open_manual", "Otworz manual"),
             command=lambda: self._open_path(self.workdir / "MANUAL_PL.md"),
+            style="Secondary.TButton",
         )
-        self.open_manual_btn.pack(side="left", padx=(8, 0))
+        self.open_manual_btn.pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
 
     def _current_platform_label(self) -> str:
         name = platform.system().lower()
@@ -821,155 +894,201 @@ class TranslatorGUI:
         self._update_command_preview()
 
     def _build_project_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.project_profiles", "Projekt i profile"), padding=12)
-        card.pack(fill="x", pady=(0, 10))
+        card = ttk.LabelFrame(parent, text=self.tr("section.project_profiles", "Projekt i profile"), padding=12, style="Card.TLabelframe")
+        card.pack(fill="x", pady=(0, self._theme_space("space_sm", 8)))
 
         ttk.Label(card, text=self.tr("label.project", "Projekt:")).grid(row=0, column=0, sticky="w")
-        self.project_combo = ttk.Combobox(card, textvariable=self.project_var, state="readonly")
+        self.project_combo = ttk.Combobox(card, textvariable=self.project_var, state="readonly", style="TCombobox")
         self.project_combo.grid(row=0, column=1, sticky="ew")
         self.project_combo.bind("<<ComboboxSelected>>", lambda _: self._on_project_selected())
 
         pbtn = ttk.Frame(card)
-        pbtn.grid(row=0, column=2, padx=(8, 0), sticky="w")
-        ttk.Button(pbtn, text=self.tr("button.new", "Nowy"), command=self._create_project).pack(side="left")
-        ttk.Button(pbtn, text=self.tr("button.save", "Zapisz"), command=lambda: self._save_project(notify_missing=True)).pack(side="left", padx=(6, 0))
-        ttk.Button(pbtn, text=self.tr("button.delete", "Usuń"), command=self._delete_project).pack(side="left", padx=(6, 0))
-        ttk.Button(pbtn, text=self.tr("button.delete_hard", "Usuń hard"), command=self._delete_project_hard).pack(side="left", padx=(6, 0))
+        pbtn.grid(row=0, column=2, padx=(self._theme_space("space_sm", 8), 0), sticky="w")
+        ttk.Button(pbtn, text=self.tr("button.new", "Nowy"), command=self._create_project, style="Secondary.TButton").pack(side="left")
+        ttk.Button(
+            pbtn,
+            text=self.tr("button.save", "Zapisz"),
+            command=lambda: self._save_project(notify_missing=True),
+            style="Primary.TButton",
+        ).pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
+        ttk.Button(pbtn, text=self.tr("button.delete", "Usuń"), command=self._delete_project, style="Danger.TButton").pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
+        ttk.Button(
+            pbtn,
+            text=self.tr("button.delete_hard", "Usuń hard"),
+            command=self._delete_project_hard,
+            style="Danger.TButton",
+        ).pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
 
         ttk.Label(card, text=self.tr("label.step_profile", "Profil kroku:")).grid(row=1, column=0, sticky="w", pady=(8, 0))
         self.profile_combo = ttk.Combobox(card, textvariable=self.profile_var, state="readonly")
         self.profile_combo.grid(row=1, column=1, sticky="ew", pady=(8, 0))
         self.profile_combo.bind("<<ComboboxSelected>>", lambda _: self._on_profile_selected())
         prbtn = ttk.Frame(card)
-        prbtn.grid(row=1, column=2, padx=(8, 0), pady=(8, 0), sticky="w")
-        ttk.Button(prbtn, text=self.tr("button.save_as_profile", "Zapisz jako profil"), command=self._create_profile_from_current).pack(side="left")
-        ttk.Button(prbtn, text=self.tr("button.export", "Eksport"), command=self._export_project).pack(side="left", padx=(6, 0))
-        ttk.Button(prbtn, text=self.tr("button.import", "Import"), command=self._import_project).pack(side="left", padx=(6, 0))
+        prbtn.grid(row=1, column=2, padx=(self._theme_space("space_sm", 8), 0), pady=(8, 0), sticky="w")
+        ttk.Button(prbtn, text=self.tr("button.save_as_profile", "Zapisz jako profil"), command=self._create_profile_from_current, style="Secondary.TButton").pack(side="left")
+        ttk.Button(prbtn, text=self.tr("button.export", "Eksport"), command=self._export_project, style="Secondary.TButton").pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
+        ttk.Button(prbtn, text=self.tr("button.import", "Import"), command=self._import_project, style="Secondary.TButton").pack(side="left", padx=(self._theme_space("space_sm", 8), 0))
 
         stats = ttk.Frame(card)
         stats.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         ttk.Label(stats, textvariable=self.status_counts_var, style="Sub.TLabel").pack(anchor="w")
+        ttk.Label(
+            stats,
+            text=self.tr("ui.hint.statuses", "Statusy: T=tlumaczenie, R=redakcja, strzalka pokazuje następny krok."),
+            style="Helper.TLabel",
+        ).pack(anchor="w", pady=(2, 0))
         self.status_list = tk.Listbox(stats, height=4)
         self.status_list.pack(fill="x", pady=(4, 0))
+        self.status_list.configure(
+            bg=self._theme_color("surface_bg", "#f8fafc"),
+            fg=self._theme_color("text", "#0f172a"),
+            highlightbackground=self._theme_color("border", "#cbd5e1"),
+            highlightcolor=self._theme_color("border", "#cbd5e1"),
+            selectbackground=self._theme_color("btn_secondary_bg", "#e2e8f0"),
+            selectforeground=self._theme_color("text", "#0f172a"),
+        )
 
         card.columnconfigure(1, weight=1)
 
     def _build_files_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.files_mode", "Pliki i tryb"), padding=12)
-        card.pack(fill="x", pady=(0, 10))
+        card = ttk.LabelFrame(parent, text=self.tr("section.files_mode", "Pliki i tryb"), padding=12, style="Card.TLabelframe")
+        card.pack(fill="x", pady=(0, self._theme_space("space_sm", 8)))
 
-        self._row_file(card, 0, self.tr("file.input_epub", "Wejściowy EPUB"), self.input_epub_var, [("EPUB", "*.epub")], self._on_input_selected)
-        self._row_file(card, 1, self.tr("file.output_epub", "Wyjściowy EPUB"), self.output_epub_var, [("EPUB", "*.epub")])
-        self._row_file(card, 2, self.tr("file.prompt", "Prompt"), self.prompt_var, [("TXT", "*.txt")], self._on_prompt_changed)
-        self._row_file(card, 3, self.tr("file.glossary", "Słownik"), self.glossary_var, [("TXT", "*.txt")])
-        self._row_file(card, 4, self.tr("file.cache", "Cache"), self.cache_var, [("JSONL", "*.jsonl"), ("All", "*.*")])
+        ttk.Label(
+            card,
+            text=self.tr("ui.hint.files", "Najpierw wybierz input/output, potem tryb i języki."),
+            style="Helper.TLabel",
+        ).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, self._theme_space("space_sm", 8)))
 
-        ttk.Label(card, text=self.tr("label.mode", "Tryb:")).grid(row=5, column=0, sticky="w", pady=(8, 0))
+        self._row_file(card, 1, self.tr("file.input_epub", "Wejściowy EPUB"), self.input_epub_var, [("EPUB", "*.epub")], self._on_input_selected)
+        self._row_file(card, 2, self.tr("file.output_epub", "Wyjściowy EPUB"), self.output_epub_var, [("EPUB", "*.epub")])
+        self._row_file(card, 3, self.tr("file.prompt", "Prompt"), self.prompt_var, [("TXT", "*.txt")], self._on_prompt_changed)
+        self._row_file(card, 4, self.tr("file.glossary", "Słownik"), self.glossary_var, [("TXT", "*.txt")])
+        self._row_file(card, 5, self.tr("file.cache", "Cache"), self.cache_var, [("JSONL", "*.jsonl"), ("All", "*.*")])
+
+        ttk.Label(card, text=self.tr("label.mode", "Tryb:")).grid(row=6, column=0, sticky="w", pady=(8, 0))
         mode_box = ttk.Frame(card)
-        mode_box.grid(row=5, column=1, sticky="w", pady=(8, 0))
+        mode_box.grid(row=6, column=1, sticky="w", pady=(8, 0))
         ttk.Radiobutton(mode_box, text=self.tr("mode.translate", "Tłumaczenie"), value="translate", variable=self.mode_var, command=self._on_mode_change).pack(side="left", padx=(0, 12))
         ttk.Radiobutton(mode_box, text=self.tr("mode.edit", "Redakcja"), value="edit", variable=self.mode_var, command=self._on_mode_change).pack(side="left")
 
-        ttk.Label(card, text=self.tr("label.src_lang", "Język źródłowy:")).grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.src_lang", "Język źródłowy:")).grid(row=7, column=0, sticky="w", pady=(8, 0))
         src_combo = ttk.Combobox(card, textvariable=self.source_lang_var, state="readonly", width=12)
         src_combo["values"] = list(SUPPORTED_TEXT_LANGS.keys())
-        src_combo.grid(row=6, column=1, sticky="w", pady=(8, 0))
+        src_combo.grid(row=7, column=1, sticky="w", pady=(8, 0))
         src_combo.bind("<<ComboboxSelected>>", lambda _: self._on_lang_pair_change())
 
-        ttk.Label(card, text=self.tr("label.tgt_lang", "Język docelowy:")).grid(row=6, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.tgt_lang", "Język docelowy:")).grid(row=7, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
         tgt_combo = ttk.Combobox(card, textvariable=self.target_lang_var, state="readonly", width=12)
         tgt_combo["values"] = list(SUPPORTED_TEXT_LANGS.keys())
-        tgt_combo.grid(row=6, column=3, sticky="w", pady=(8, 0))
+        tgt_combo.grid(row=7, column=3, sticky="w", pady=(8, 0))
         tgt_combo.bind("<<ComboboxSelected>>", lambda _: self._on_lang_pair_change())
 
         card.columnconfigure(1, weight=1)
 
     def _build_engine_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.engine_batch", "Silnik i parametry batch"), padding=12)
-        card.pack(fill="x", pady=(0, 10))
+        card = ttk.LabelFrame(parent, text=self.tr("section.engine_batch", "Silnik i parametry batch"), padding=12, style="Card.TLabelframe")
+        card.pack(fill="x", pady=(0, self._theme_space("space_sm", 8)))
 
-        ttk.Label(card, text=self.tr("label.provider", "Provider:")).grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            card,
+            text=self.tr("ui.hint.engine", "Ustaw provider i model. Parametry batch kontrolują stabilność i szybkość."),
+            style="Helper.TLabel",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, self._theme_space("space_sm", 8)))
+
+        ttk.Label(card, text=self.tr("label.provider", "Provider:")).grid(row=1, column=0, sticky="w")
         pbox = ttk.Frame(card)
-        pbox.grid(row=0, column=1, sticky="w")
+        pbox.grid(row=1, column=1, sticky="w")
         ttk.Radiobutton(pbox, text=self.tr("provider.ollama", "Ollama (lokalnie)"), value="ollama", variable=self.provider_var, command=self._on_provider_change).pack(side="left", padx=(0, 12))
         ttk.Radiobutton(pbox, text=self.tr("provider.google", "Google Gemini API"), value="google", variable=self.provider_var, command=self._on_provider_change).pack(side="left")
 
-        ttk.Label(card, text=self.tr("label.ollama_host", "Ollama host:")).grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.ollama_host", "Ollama host:")).grid(row=2, column=0, sticky="w", pady=(8, 0))
         self.ollama_host_entry = ttk.Entry(card, textvariable=self.ollama_host_var)
-        self.ollama_host_entry.grid(row=1, column=1, sticky="ew", pady=(8, 0))
+        self.ollama_host_entry.grid(row=2, column=1, sticky="ew", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.google_api_key", "Google API key (lub env {env_name}):", env_name=GOOGLE_API_KEY_ENV)).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.google_api_key", "Google API key (lub env {env_name}):", env_name=GOOGLE_API_KEY_ENV)).grid(row=3, column=0, sticky="w", pady=(8, 0))
         self.google_key_entry = ttk.Entry(card, textvariable=self.google_api_key_var, show="*")
-        self.google_key_entry.grid(row=2, column=1, sticky="ew", pady=(8, 0))
+        self.google_key_entry.grid(row=3, column=1, sticky="ew", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.max_segs", "Max segs / request:")).grid(row=3, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(card, textvariable=self.batch_max_segs_var, width=14).grid(row=3, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.max_segs", "Max segs / request:")).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(card, textvariable=self.batch_max_segs_var, width=14).grid(row=4, column=1, sticky="w", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.max_chars", "Max chars / request:")).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(card, textvariable=self.batch_max_chars_var, width=14).grid(row=4, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.max_chars", "Max chars / request:")).grid(row=5, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(card, textvariable=self.batch_max_chars_var, width=14).grid(row=5, column=1, sticky="w", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.sleep", "Pauza między requestami:")).grid(row=5, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(card, textvariable=self.sleep_var, width=14).grid(row=5, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.sleep", "Pauza między requestami:")).grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(card, textvariable=self.sleep_var, width=14).grid(row=6, column=1, sticky="w", pady=(8, 0))
 
         card.columnconfigure(1, weight=1)
 
     def _build_advanced_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.advanced_settings", "Ustawienia zaawansowane"), padding=12)
+        card = ttk.LabelFrame(parent, text=self.tr("section.advanced_settings", "Ustawienia zaawansowane"), padding=12, style="Card.TLabelframe")
         card.pack(fill="x")
 
-        ttk.Label(card, text=self.tr("label.timeout", "Timeout (s):")).grid(row=0, column=0, sticky="w")
-        ttk.Entry(card, textvariable=self.timeout_var, width=12).grid(row=0, column=1, sticky="w")
+        ttk.Label(
+            card,
+            text=self.tr("ui.hint.advanced", "Zmieniaj te pola tylko gdy potrzebujesz strojenia jakości/stabilności."),
+            style="Helper.TLabel",
+        ).grid(row=0, column=0, columnspan=6, sticky="w", pady=(0, self._theme_space("space_sm", 8)))
 
-        ttk.Label(card, text=self.tr("label.attempts", "Attempts:")).grid(row=0, column=2, sticky="w", padx=(12, 0))
-        ttk.Entry(card, textvariable=self.attempts_var, width=8).grid(row=0, column=3, sticky="w")
+        ttk.Label(card, text=self.tr("label.timeout", "Timeout (s):")).grid(row=1, column=0, sticky="w")
+        ttk.Entry(card, textvariable=self.timeout_var, width=12).grid(row=1, column=1, sticky="w")
 
-        ttk.Label(card, text=self.tr("label.backoff", "Backoff:")).grid(row=0, column=4, sticky="w", padx=(12, 0))
-        ttk.Entry(card, textvariable=self.backoff_var, width=12).grid(row=0, column=5, sticky="w")
+        ttk.Label(card, text=self.tr("label.attempts", "Attempts:")).grid(row=1, column=2, sticky="w", padx=(12, 0))
+        ttk.Entry(card, textvariable=self.attempts_var, width=8).grid(row=1, column=3, sticky="w")
 
-        ttk.Label(card, text=self.tr("label.temperature", "Temperature:")).grid(row=1, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(card, textvariable=self.temperature_var, width=12).grid(row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.backoff", "Backoff:")).grid(row=1, column=4, sticky="w", padx=(12, 0))
+        ttk.Entry(card, textvariable=self.backoff_var, width=12).grid(row=1, column=5, sticky="w")
 
-        ttk.Label(card, text=self.tr("label.num_ctx", "Num ctx:")).grid(row=1, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
-        ttk.Entry(card, textvariable=self.num_ctx_var, width=10).grid(row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.temperature", "Temperature:")).grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(card, textvariable=self.temperature_var, width=12).grid(row=2, column=1, sticky="w", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.num_predict", "Num predict:")).grid(row=1, column=4, sticky="w", padx=(12, 0), pady=(8, 0))
-        ttk.Entry(card, textvariable=self.num_predict_var, width=10).grid(row=1, column=5, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.num_ctx", "Num ctx:")).grid(row=2, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Entry(card, textvariable=self.num_ctx_var, width=10).grid(row=2, column=3, sticky="w", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.checkpoint", "Checkpoint co N plików:")).grid(row=2, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(card, textvariable=self.checkpoint_var, width=12).grid(row=2, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.num_predict", "Num predict:")).grid(row=2, column=4, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Entry(card, textvariable=self.num_predict_var, width=10).grid(row=2, column=5, sticky="w", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.debug_dir", "Debug dir:")).grid(row=2, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
-        ttk.Entry(card, textvariable=self.debug_dir_var, width=24).grid(row=2, column=3, columnspan=3, sticky="ew", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.checkpoint", "Checkpoint co N plików:")).grid(row=3, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(card, textvariable=self.checkpoint_var, width=12).grid(row=3, column=1, sticky="w", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.tags", "Tagi:")).grid(row=3, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(card, textvariable=self.tags_var).grid(row=3, column=1, columnspan=5, sticky="ew", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.debug_dir", "Debug dir:")).grid(row=3, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Entry(card, textvariable=self.debug_dir_var, width=24).grid(row=3, column=3, columnspan=3, sticky="ew", pady=(8, 0))
 
-        ttk.Checkbutton(card, text="Użyj cache", variable=self.use_cache_var, command=self._update_command_preview).grid(row=4, column=0, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(card, text="Użyj słownika", variable=self.use_glossary_var, command=self._update_command_preview).grid(row=4, column=1, columnspan=2, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.tags", "Tagi:")).grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(card, textvariable=self.tags_var).grid(row=4, column=1, columnspan=5, sticky="ew", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.tooltip_mode", "Tooltip mode:")).grid(row=5, column=0, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(card, text="Użyj cache", variable=self.use_cache_var, command=self._update_command_preview).grid(row=5, column=0, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(card, text="Użyj słownika", variable=self.use_glossary_var, command=self._update_command_preview).grid(row=5, column=1, columnspan=2, sticky="w", pady=(8, 0))
+
+        ttk.Label(card, text=self.tr("label.tooltip_mode", "Tooltip mode:")).grid(row=6, column=0, sticky="w", pady=(8, 0))
         tip_combo = ttk.Combobox(card, textvariable=self.tooltip_mode_var, state="readonly", width=14)
         tip_combo["values"] = ["hybrid", "short", "expert"]
-        tip_combo.grid(row=5, column=1, sticky="w", pady=(8, 0))
+        tip_combo.grid(row=6, column=1, sticky="w", pady=(8, 0))
         tip_combo.bind("<<ComboboxSelected>>", lambda _: self._on_tooltip_mode_change())
 
-        ttk.Label(card, text=self.tr("label.ui_language", "Jezyk UI:")).grid(row=5, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.ui_language", "Jezyk UI:")).grid(row=6, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
         ui_combo = ttk.Combobox(card, textvariable=self.ui_language_var, state="readonly", width=14)
         ui_combo["values"] = list(SUPPORTED_UI_LANGS.keys())
-        ui_combo.grid(row=5, column=3, sticky="w", pady=(8, 0))
+        ui_combo.grid(row=6, column=3, sticky="w", pady=(8, 0))
         ui_combo.bind("<<ComboboxSelected>>", lambda _: self._on_ui_language_change())
-        ttk.Button(card, text=self.tr("button.ai_translate_gui", "AI: szkic tlumaczenia GUI"), command=self._ai_translate_ui_language).grid(row=5, column=4, columnspan=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Button(
+            card,
+            text=self.tr("button.ai_translate_gui", "AI: szkic tlumaczenia GUI"),
+            command=self._ai_translate_ui_language,
+            style="Secondary.TButton",
+        ).grid(row=6, column=4, columnspan=2, sticky="w", padx=(12, 0), pady=(8, 0))
 
         for i in range(6):
             card.columnconfigure(i, weight=1)
 
     def _build_model_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.model", "Model AI"), padding=12)
-        card.pack(fill="x", pady=(0, 10))
+        card = ttk.LabelFrame(parent, text=self.tr("section.model", "Model AI"), padding=12, style="Card.TLabelframe")
+        card.pack(fill="x", pady=(0, self._theme_space("space_sm", 8)))
 
         self.model_combo = ttk.Combobox(card, textvariable=self.model_var, state="readonly")
         self.model_combo.grid(row=0, column=0, sticky="ew")
-        ttk.Button(card, text=self.tr("button.refresh_models", "Odśwież listę modeli"), command=self._refresh_models).grid(row=0, column=1, padx=(8, 0))
+        ttk.Button(card, text=self.tr("button.refresh_models", "Odśwież listę modeli"), command=self._refresh_models, style="Secondary.TButton").grid(row=0, column=1, padx=(8, 0))
 
         self.model_status = ttk.Label(card, text="", style="Sub.TLabel")
         self.model_status.grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
@@ -977,33 +1096,38 @@ class TranslatorGUI:
         card.columnconfigure(0, weight=1)
 
     def _build_run_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.run", "Uruchomienie"), padding=12)
-        card.pack(fill="x", pady=(0, 10))
+        card = ttk.LabelFrame(parent, text=self.tr("section.run", "Uruchomienie"), padding=12, style="Card.TLabelframe")
+        card.pack(fill="x", pady=(0, self._theme_space("space_sm", 8)))
 
         ttk.Label(card, text=self.tr("run.command_preview", "Podgląd komendy:")).pack(anchor="w")
         ttk.Entry(card, textvariable=self.command_preview_var, state="readonly").pack(fill="x", pady=(4, 8))
+        ttk.Label(
+            card,
+            text=self.tr("ui.hint.shortcuts", "Skróty: Ctrl+S zapisz, Ctrl+R start, Ctrl+Q kolejkuj, F5 modele."),
+            style="Helper.TLabel",
+        ).pack(anchor="w", pady=(0, self._theme_space("space_sm", 8)))
 
         btns = ttk.Frame(card)
         btns.pack(fill="x")
-        self.start_btn = ttk.Button(btns, text=self.tr("button.start", "Start translacji"), style="Accent.TButton", command=self._start_process)
+        self.start_btn = ttk.Button(btns, text=self.tr("button.start", "Start translacji"), style="Primary.TButton", command=self._start_process)
         self.start_btn.pack(side="left")
-        self.stop_btn = ttk.Button(btns, text=self.tr("button.stop", "Stop"), command=self._stop_process, state="disabled")
+        self.stop_btn = ttk.Button(btns, text=self.tr("button.stop", "Stop"), command=self._stop_process, state="disabled", style="Danger.TButton")
         self.stop_btn.pack(side="left", padx=(8, 0))
-        self.validate_btn = ttk.Button(btns, text=self.tr("button.validate_epub", "Waliduj EPUB"), command=self._start_validation)
+        self.validate_btn = ttk.Button(btns, text=self.tr("button.validate_epub", "Waliduj EPUB"), command=self._start_validation, style="Secondary.TButton")
         self.validate_btn.pack(side="left", padx=(8, 0))
-        ttk.Button(btns, text=self.tr("button.estimate", "Estymacja"), command=self._start_estimate).pack(side="left", padx=(16, 0))
-        ttk.Button(btns, text=self.tr("button.queue", "Kolejkuj"), command=self._queue_current_project).pack(side="left", padx=(8, 0))
-        ttk.Button(btns, text=self.tr("button.run_next", "Uruchom następny"), command=self._run_next_pending).pack(side="left", padx=(8, 0))
-        self.run_all_btn = ttk.Button(btns, text=self.tr("button.run_all_pending", "Run all pending"), command=self._start_run_all_pending)
+        ttk.Button(btns, text=self.tr("button.estimate", "Estymacja"), command=self._start_estimate, style="Secondary.TButton").pack(side="left", padx=(16, 0))
+        ttk.Button(btns, text=self.tr("button.queue", "Kolejkuj"), command=self._queue_current_project, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(btns, text=self.tr("button.run_next", "Uruchom następny"), command=self._run_next_pending, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        self.run_all_btn = ttk.Button(btns, text=self.tr("button.run_all_pending", "Run all pending"), command=self._start_run_all_pending, style="Secondary.TButton")
         self.run_all_btn.pack(side="left", padx=(8, 0))
-        self.stop_run_all_btn = ttk.Button(btns, text=self.tr("button.stop_run_all", "Stop run-all"), command=self._stop_run_all_pending, state="disabled")
+        self.stop_run_all_btn = ttk.Button(btns, text=self.tr("button.stop_run_all", "Stop run-all"), command=self._stop_run_all_pending, state="disabled", style="Danger.TButton")
         self.stop_run_all_btn.pack(side="left", padx=(8, 0))
 
         quick = ttk.Frame(card)
         quick.pack(fill="x", pady=(8, 0))
-        ttk.Button(quick, text=self.tr("button.open_output", "Otwórz output"), command=self._open_output).pack(side="left")
-        ttk.Button(quick, text=self.tr("button.open_cache", "Otwórz cache"), command=self._open_cache).pack(side="left", padx=(8, 0))
-        ttk.Button(quick, text=self.tr("button.clear_debug", "Wyczyść debug"), command=self._clear_debug).pack(side="left", padx=(8, 0))
+        ttk.Button(quick, text=self.tr("button.open_output", "Otwórz output"), command=self._open_output, style="Secondary.TButton").pack(side="left")
+        ttk.Button(quick, text=self.tr("button.open_cache", "Otwórz cache"), command=self._open_cache, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(quick, text=self.tr("button.clear_debug", "Wyczyść debug"), command=self._clear_debug, style="Secondary.TButton").pack(side="left", padx=(8, 0))
         ttk.Label(quick, textvariable=self.estimate_var, style="Sub.TLabel").pack(side="right")
         ttk.Label(quick, textvariable=self.queue_status_var, style="Sub.TLabel").pack(side="right", padx=(0, 12))
 
@@ -1015,34 +1139,53 @@ class TranslatorGUI:
         ttk.Label(progress_wrap, textvariable=self.phase_var, style="Sub.TLabel").pack(anchor="w", pady=(4, 0))
 
     def _build_enhance_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.enhance", "Uładnianie EPUB"), padding=12)
-        card.pack(fill="x", pady=(0, 10))
+        card = ttk.LabelFrame(parent, text=self.tr("section.enhance", "Uładnianie EPUB"), padding=12, style="Card.TLabelframe")
+        card.pack(fill="x", pady=(0, self._theme_space("space_sm", 8)))
 
         row1 = ttk.Frame(card)
         row1.pack(fill="x")
-        ttk.Button(row1, text=self.tr("button.add_card_single", "Dodaj wizytówkę (1 EPUB)"), command=self._add_card_single).pack(side="left")
-        ttk.Button(row1, text=self.tr("button.add_card_batch", "Dodaj wizytówkę (folder)"), command=self._add_card_batch).pack(side="left", padx=(8, 0))
+        ttk.Button(row1, text=self.tr("button.add_card_single", "Dodaj wizytówkę (1 EPUB)"), command=self._add_card_single, style="Secondary.TButton").pack(side="left")
+        ttk.Button(row1, text=self.tr("button.add_card_batch", "Dodaj wizytówkę (folder)"), command=self._add_card_batch, style="Secondary.TButton").pack(side="left", padx=(8, 0))
 
         row2 = ttk.Frame(card)
         row2.pack(fill="x", pady=(8, 0))
-        ttk.Button(row2, text=self.tr("button.remove_cover", "Usuń okładkę"), command=self._remove_cover).pack(side="left")
-        ttk.Button(row2, text=self.tr("button.remove_graphics_pattern", "Usuń grafiki (pattern)"), command=self._remove_graphics_pattern).pack(side="left", padx=(8, 0))
+        ttk.Button(row2, text=self.tr("button.remove_cover", "Usuń okładkę"), command=self._remove_cover, style="Danger.TButton").pack(side="left")
+        ttk.Button(row2, text=self.tr("button.remove_graphics_pattern", "Usuń grafiki (pattern)"), command=self._remove_graphics_pattern, style="Danger.TButton").pack(side="left", padx=(8, 0))
 
         row3 = ttk.Frame(card)
         row3.pack(fill="x", pady=(8, 0))
-        ttk.Button(row3, text=self.tr("button.open_text_editor", "Edytor tekstu EPUB"), command=self._open_text_editor).pack(side="left")
-        ttk.Button(row3, text=self.tr("button.undo_last_operation", "Cofnij ostatnią operację"), command=self._undo_last_operation).pack(side="left", padx=(8, 0))
-        ttk.Button(row3, text=self.tr("button.open_studio", "Studio Tools (12)"), command=self._open_studio_tools).pack(side="left", padx=(8, 0))
+        ttk.Button(row3, text=self.tr("button.open_text_editor", "Edytor tekstu EPUB"), command=self._open_text_editor, style="Secondary.TButton").pack(side="left")
+        ttk.Button(row3, text=self.tr("button.undo_last_operation", "Cofnij ostatnią operację"), command=self._undo_last_operation, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(row3, text=self.tr("button.open_studio", "Studio Tools (12)"), command=self._open_studio_tools, style="Secondary.TButton").pack(side="left", padx=(8, 0))
 
     def _build_log_card(self, parent: ttk.Frame) -> None:
-        card = ttk.LabelFrame(parent, text=self.tr("section.log", "Log"), padding=12)
+        card = ttk.LabelFrame(parent, text=self.tr("section.log", "Log"), padding=12, style="Card.TLabelframe")
         card.pack(fill="both", expand=True)
         hist = ttk.Frame(card)
         hist.pack(fill="x", pady=(0, 8))
         ttk.Label(hist, text=self.tr("history.title", "Historia projektu (ostatnie uruchomienia):"), style="Sub.TLabel").pack(anchor="w")
         self.history_box = tk.Listbox(hist, height=5)
         self.history_box.pack(fill="x")
-        self.log_box = ScrolledText(card, height=20, font=("Consolas", 10), bg="#0f172a", fg="#e2e8f0", insertbackground="#e2e8f0")
+        self.history_box.configure(
+            bg=self._theme_color("surface_bg", "#f8fafc"),
+            fg=self._theme_color("text", "#0f172a"),
+            highlightbackground=self._theme_color("border", "#cbd5e1"),
+            highlightcolor=self._theme_color("border", "#cbd5e1"),
+            selectbackground=self._theme_color("btn_secondary_bg", "#e2e8f0"),
+            selectforeground=self._theme_color("text", "#0f172a"),
+        )
+        self.log_box = ScrolledText(
+            card,
+            height=20,
+            font=("Consolas", 10),
+            bg=self._theme_color("surface_bg", "#f8fafc"),
+            fg=self._theme_color("text", "#0f172a"),
+            insertbackground=self._theme_color("text", "#0f172a"),
+            relief="solid",
+            bd=1,
+            highlightbackground=self._theme_color("border", "#cbd5e1"),
+            highlightcolor=self._theme_color("border", "#cbd5e1"),
+        )
         self.log_box.pack(fill="both", expand=True)
         self.log_box.configure(state="disabled")
 
@@ -1865,9 +2008,10 @@ class TranslatorGUI:
         filetypes: List[tuple[str, str]],
         on_change=None,
     ) -> None:
-        ttk.Label(parent, text=label + ":").grid(row=row, column=0, sticky="w", pady=(0, 6))
+        row_gap = self._theme_space("space_sm", 8)
+        ttk.Label(parent, text=label + ":").grid(row=row, column=0, sticky="w", pady=(0, row_gap))
         entry = ttk.Entry(parent, textvariable=var)
-        entry.grid(row=row, column=1, sticky="ew", pady=(0, 6))
+        entry.grid(row=row, column=1, sticky="ew", pady=(0, row_gap))
 
         def pick() -> None:
             start_dir = str(self.workdir)
@@ -1878,7 +2022,12 @@ class TranslatorGUI:
                     on_change()
                 self._update_command_preview()
 
-        ttk.Button(parent, text=self.tr("button.choose", "Wybierz"), command=pick).grid(row=row, column=2, padx=(8, 0), pady=(0, 6))
+        ttk.Button(parent, text=self.tr("button.choose", "Wybierz"), command=pick, style="Secondary.TButton").grid(
+            row=row,
+            column=2,
+            padx=(self._theme_space("space_sm", 8), 0),
+            pady=(0, row_gap),
+        )
 
     def _load_defaults(self) -> None:
         kr = load_google_api_key_from_keyring()
@@ -2614,6 +2763,12 @@ class TranslatorGUI:
             self.db.close()
         except Exception:
             pass
+        if self._inline_notice_after_id is not None:
+            try:
+                self.root.after_cancel(self._inline_notice_after_id)
+            except Exception:
+                pass
+            self._inline_notice_after_id = None
         self.root.destroy()
 
 
