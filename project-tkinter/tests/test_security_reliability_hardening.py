@@ -157,3 +157,40 @@ def test_managed_schema_migration_creates_backup_and_tracking_row(tmp_path: Path
         assert "volume_no" in cols
     finally:
         db.close()
+
+
+def test_rollback_last_migration_restores_backup_schema(tmp_path: Path) -> None:
+    db_path = tmp_path / "legacy_v7_for_rollback.db"
+    raw = sqlite3.connect(str(db_path))
+    raw.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    raw.execute("INSERT OR REPLACE INTO meta(key, value) VALUES('schema_version', '7')")
+    raw.execute("CREATE TABLE IF NOT EXISTS profiles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, is_builtin INTEGER NOT NULL DEFAULT 0, settings_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
+    raw.execute("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, input_epub TEXT NOT NULL DEFAULT '', output_translate_epub TEXT NOT NULL DEFAULT '', output_edit_epub TEXT NOT NULL DEFAULT '', prompt_translate TEXT NOT NULL DEFAULT '', prompt_edit TEXT NOT NULL DEFAULT '', glossary_path TEXT NOT NULL DEFAULT '', cache_translate_path TEXT NOT NULL DEFAULT '', cache_edit_path TEXT NOT NULL DEFAULT '', profile_translate_id INTEGER, profile_edit_id INTEGER, source_lang TEXT NOT NULL DEFAULT 'en', target_lang TEXT NOT NULL DEFAULT 'pl', active_step TEXT NOT NULL DEFAULT 'translate', status TEXT NOT NULL DEFAULT 'idle', notes TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
+    raw.execute("CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, step TEXT NOT NULL, status TEXT NOT NULL, command_text TEXT NOT NULL DEFAULT '', started_at INTEGER NOT NULL, finished_at INTEGER, global_done INTEGER NOT NULL DEFAULT 0, global_total INTEGER NOT NULL DEFAULT 0, message TEXT NOT NULL DEFAULT '')")
+    raw.commit()
+    raw.close()
+
+    series_dir = tmp_path / "series_data2"
+    series_dir.mkdir(parents=True, exist_ok=True)
+    (series_dir / "README.txt").write_text("series placeholder", encoding="utf-8")
+
+    db = ProjectDB(db_path, backup_paths=[series_dir])
+    try:
+        assert db.last_migration_summary is not None
+    finally:
+        db.close()
+
+    db2 = ProjectDB(db_path, run_migrations=False)
+    try:
+        ok, msg = db2.rollback_last_migration()
+        assert ok is True, msg
+    finally:
+        db2.close()
+
+    check = sqlite3.connect(str(db_path))
+    try:
+        row = check.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+        assert row is not None
+        assert int(str(row[0])) == 7
+    finally:
+        check.close()

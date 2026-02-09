@@ -86,6 +86,7 @@ class ProjectDB:
         *,
         recover_runtime_state: bool = False,
         backup_paths: Optional[List[Path]] = None,
+        run_migrations: bool = True,
     ) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -100,15 +101,16 @@ class ProjectDB:
         lock_fh = _acquire_init_lock(self.path.with_suffix(self.path.suffix + ".init.lock"))
         try:
             self._init_schema()
-            current_schema = self._schema_version()
-            if current_schema < SCHEMA_VERSION:
-                self.last_migration_summary = self._run_migrations_managed(
-                    current_schema,
-                    SCHEMA_VERSION,
-                    backup_paths=self._backup_paths,
-                )
-            else:
-                self._run_migrations()
+            if run_migrations:
+                current_schema = self._schema_version()
+                if current_schema < SCHEMA_VERSION:
+                    self.last_migration_summary = self._run_migrations_managed(
+                        current_schema,
+                        SCHEMA_VERSION,
+                        backup_paths=self._backup_paths,
+                    )
+                else:
+                    self._run_migrations()
             self._ensure_default_profiles()
             if recover_runtime_state:
                 self.recover_interrupted_runtime_state()
@@ -363,13 +365,32 @@ class ProjectDB:
             zip_path = shutil.make_archive(str(zip_name), "zip", root_dir=str(p.parent), base_dir=p.name)
             extra_archives.append({"source": str(p), "zip": str(zip_path)})
 
-        return {
+        payload = {
             "backup_dir": str(backup_dir),
             "db_backup": str(db_backup),
             "wal_backup": str(wal_backup),
             "shm_backup": str(shm_backup),
             "extra_archives": extra_archives,
+            "from_schema": int(from_schema),
+            "to_schema": int(to_schema),
+            "created_at": _now_ts(),
         }
+        manifest_path = backup_dir / "backup_manifest.json"
+        manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        payload["manifest_path"] = str(manifest_path)
+        return payload
+
+    def _load_backup_manifest(self, backup_dir: Path) -> Optional[Dict[str, Any]]:
+        p = Path(backup_dir) / "backup_manifest.json"
+        if not p.exists():
+            return None
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        if not isinstance(data, dict):
+            return None
+        return data
 
     def _restore_migration_backup(self, backup: Dict[str, Any]) -> bool:
         backup_db = Path(str(backup.get("db_backup", "")).strip())
@@ -408,6 +429,11 @@ class ProjectDB:
                     source.unlink()
             with zipfile.ZipFile(zip_path, "r") as zf:
                 zf.extractall(str(source.parent))
+        self.conn = sqlite3.connect(str(self.path), timeout=30.0)
+        self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA journal_mode = WAL")
+        self.conn.execute("PRAGMA busy_timeout = 5000")
+        self.conn.execute("PRAGMA foreign_keys = ON")
         return True
 
     def _run_migrations_managed(
@@ -447,6 +473,56 @@ class ProjectDB:
                 f"Backup: {backup_dir}. Rollback: {'ok' if rollback_ok else 'failed'}. "
                 f"Original error: {err}"
             ) from e
+
+    def list_migration_runs(self, limit: int = 20) -> List[sqlite3.Row]:
+        return list(
+            self.conn.execute(
+                "SELECT * FROM migration_runs ORDER BY id DESC LIMIT ?",
+                (max(1, int(limit)),),
+            )
+        )
+
+    def latest_migration_run(self) -> Optional[sqlite3.Row]:
+        return self.conn.execute(
+            "SELECT * FROM migration_runs ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+
+    def rollback_last_migration(self) -> Tuple[bool, str]:
+        row = self.latest_migration_run()
+        if row is None:
+            return False, "Brak wpisow migracji do rollback."
+
+        from_schema = int(row["from_schema"] or 0)
+        to_schema = int(row["to_schema"] or 0)
+        backup_dir = Path(str(row["backup_dir"] or "").strip())
+        manifest = self._load_backup_manifest(backup_dir)
+        if manifest is None:
+            return False, f"Brak manifestu backupu: {backup_dir}"
+
+        ok = self._restore_migration_backup(manifest)
+        if not ok:
+            return False, f"Nie udalo sie przywrocic backupu z: {backup_dir}"
+
+        now = _now_ts()
+        self.conn.execute(
+            """
+            INSERT INTO migration_runs(
+                from_schema, to_schema, status, backup_dir, error_message, rollback_applied, started_at, finished_at
+            ) VALUES(?, ?, 'rolled_back', ?, 'rollback applied manually', 1, ?, ?)
+            """,
+            (from_schema, to_schema, str(backup_dir), now, now),
+        )
+        self.conn.commit()
+        return True, f"Rollback zakonczony powodzeniem. Backup: {backup_dir}"
+
+    def build_migration_report(self, limit: int = 50) -> Dict[str, Any]:
+        rows = [dict(r) for r in self.list_migration_runs(limit=limit)]
+        return {
+            "db_path": str(self.path),
+            "schema_version": int(self._schema_version()),
+            "generated_at": _now_ts(),
+            "rows": rows,
+        }
 
     def _schema_version(self) -> int:
         raw = self._meta_get("schema_version")
