@@ -44,6 +44,9 @@ class RunOptions:
     tm_db: str = ""
     tm_project_id: Optional[int] = None
     run_step: str = "translate"
+    context_window: str = "0"
+    context_neighbor_max_chars: str = "180"
+    context_segment_max_chars: str = "1200"
 
 
 def list_ollama_models(host: str, timeout_s: int = 20) -> List[str]:
@@ -169,6 +172,22 @@ def build_run_command(
         cmd += ["--tm-project-id", str(int(opts.tm_project_id))]
     cmd += ["--run-step", (opts.run_step.strip().lower() or "translate")]
     cmd += ["--tm-fuzzy-threshold", tm_fuzzy_threshold]
+    try:
+        ctx_window = max(0, int(str(opts.context_window or "").strip() or "0"))
+    except Exception:
+        ctx_window = 0
+    if ctx_window > 0:
+        cmd += ["--context-window", str(ctx_window)]
+        try:
+            c_n = max(24, int(str(opts.context_neighbor_max_chars or "").strip() or "180"))
+        except Exception:
+            c_n = 180
+        try:
+            c_s = max(80, int(str(opts.context_segment_max_chars or "").strip() or "1200"))
+        except Exception:
+            c_s = 1200
+        cmd += ["--context-neighbor-max-chars", str(c_n)]
+        cmd += ["--context-segment-max-chars", str(c_s)]
     return cmd
 
 

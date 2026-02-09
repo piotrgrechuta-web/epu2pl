@@ -711,6 +711,9 @@ class TranslatorGUI:
         self.use_glossary_var = tk.BooleanVar(value=True)
         self.hard_gate_epubcheck_var = tk.BooleanVar(value=True)
         self.checkpoint_var = tk.StringVar(value="0")
+        self.context_window_var = tk.StringVar(value="0")
+        self.context_neighbor_max_chars_var = tk.StringVar(value="180")
+        self.context_segment_max_chars_var = tk.StringVar(value="1200")
         self.tooltip_mode_var = tk.StringVar(value=self.tooltip_mode)
         self.ui_language_var = tk.StringVar(value=self.i18n.lang)
         self.source_lang_var = tk.StringVar(value="en")
@@ -1321,23 +1324,30 @@ class TranslatorGUI:
         ttk.Checkbutton(card, text="UÄąÄ˝yj cache", variable=self.use_cache_var, command=self._update_command_preview).grid(row=5, column=0, sticky="w", pady=(8, 0))
         ttk.Checkbutton(card, text="UÄąÄ˝yj sÄąâ€šownika", variable=self.use_glossary_var, command=self._update_command_preview).grid(row=5, column=1, columnspan=2, sticky="w", pady=(8, 0))
 
-        ttk.Label(card, text=self.tr("label.tooltip_mode", "Tooltip mode:")).grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.context_window", "Smart context window:")).grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(card, textvariable=self.context_window_var, width=12).grid(row=6, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.context_neighbor_max_chars", "Context max chars (neighbor):")).grid(row=6, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Entry(card, textvariable=self.context_neighbor_max_chars_var, width=12).grid(row=6, column=3, sticky="w", pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.context_segment_max_chars", "Context max chars (segment):")).grid(row=6, column=4, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Entry(card, textvariable=self.context_segment_max_chars_var, width=12).grid(row=6, column=5, sticky="w", pady=(8, 0))
+
+        ttk.Label(card, text=self.tr("label.tooltip_mode", "Tooltip mode:")).grid(row=7, column=0, sticky="w", pady=(8, 0))
         tip_combo = ttk.Combobox(card, textvariable=self.tooltip_mode_var, state="readonly", width=14)
         tip_combo["values"] = ["hybrid", "short", "expert"]
-        tip_combo.grid(row=6, column=1, sticky="w", pady=(8, 0))
+        tip_combo.grid(row=7, column=1, sticky="w", pady=(8, 0))
         tip_combo.bind("<<ComboboxSelected>>", lambda _: self._on_tooltip_mode_change())
 
-        ttk.Label(card, text=self.tr("label.ui_language", "Jezyk UI:")).grid(row=6, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Label(card, text=self.tr("label.ui_language", "Jezyk UI:")).grid(row=7, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
         ui_combo = ttk.Combobox(card, textvariable=self.ui_language_var, state="readonly", width=14)
         ui_combo["values"] = list(SUPPORTED_UI_LANGS.keys())
-        ui_combo.grid(row=6, column=3, sticky="w", pady=(8, 0))
+        ui_combo.grid(row=7, column=3, sticky="w", pady=(8, 0))
         ui_combo.bind("<<ComboboxSelected>>", lambda _: self._on_ui_language_change())
         ttk.Button(
             card,
             text=self.tr("button.ai_translate_gui", "AI: szkic tlumaczenia GUI"),
             command=self._ai_translate_ui_language,
             style="Secondary.TButton",
-        ).grid(row=6, column=4, columnspan=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ).grid(row=7, column=4, columnspan=2, sticky="w", padx=(12, 0), pady=(8, 0))
 
         for i in range(6):
             card.columnconfigure(i, weight=1)
@@ -3079,6 +3089,9 @@ class TranslatorGUI:
             tm_db=str(SQLITE_FILE),
             tm_project_id=self.current_project_id,
             run_step=(self.mode_var.get().strip().lower() or "translate"),
+            context_window=self.context_window_var.get().strip(),
+            context_neighbor_max_chars=self.context_neighbor_max_chars_var.get().strip(),
+            context_segment_max_chars=self.context_segment_max_chars_var.get().strip(),
         )
         return core_build_run_command(self._translator_cmd_prefix(), opts, tm_fuzzy_threshold="0.92")
 
@@ -3152,6 +3165,9 @@ class TranslatorGUI:
             ("timeout", self.timeout_var.get().strip()),
             ("attempts", self.attempts_var.get().strip()),
             ("checkpoint", self.checkpoint_var.get().strip()),
+            ("context-window", self.context_window_var.get().strip()),
+            ("context-neighbor-max-chars", self.context_neighbor_max_chars_var.get().strip()),
+            ("context-segment-max-chars", self.context_segment_max_chars_var.get().strip()),
         ]:
             try:
                 int(v)
@@ -3722,6 +3738,9 @@ class TranslatorGUI:
             "use_glossary": self.use_glossary_var.get(),
             "hard_gate_epubcheck": self.hard_gate_epubcheck_var.get(),
             "checkpoint": self.checkpoint_var.get(),
+            "context_window": self.context_window_var.get(),
+            "context_neighbor_max_chars": self.context_neighbor_max_chars_var.get(),
+            "context_segment_max_chars": self.context_segment_max_chars_var.get(),
             "source_lang": self.source_lang_var.get(),
             "target_lang": self.target_lang_var.get(),
         }
@@ -3759,6 +3778,13 @@ class TranslatorGUI:
         self.use_glossary_var.set(bool(data.get("use_glossary", self.use_glossary_var.get())))
         self.hard_gate_epubcheck_var.set(bool(data.get("hard_gate_epubcheck", self.hard_gate_epubcheck_var.get())))
         self.checkpoint_var.set(data.get("checkpoint", self.checkpoint_var.get()))
+        self.context_window_var.set(str(data.get("context_window", self.context_window_var.get() or "0")))
+        self.context_neighbor_max_chars_var.set(
+            str(data.get("context_neighbor_max_chars", self.context_neighbor_max_chars_var.get() or "180"))
+        )
+        self.context_segment_max_chars_var.set(
+            str(data.get("context_segment_max_chars", self.context_segment_max_chars_var.get() or "1200"))
+        )
         self.tooltip_mode_var.set(str(data.get("tooltip_mode", self.tooltip_mode_var.get() or "hybrid")))
         self.source_lang_var.set(str(data.get("source_lang", self.source_lang_var.get() or "en")))
         self.target_lang_var.set(str(data.get("target_lang", self.target_lang_var.get() or "pl")))

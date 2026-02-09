@@ -22,6 +22,7 @@ from translation_engine import (  # noqa: E402
     semantic_similarity_score,
     load_language_guard_profiles,
     looks_like_target_language,
+    build_context_hints,
 )
 
 
@@ -283,12 +284,40 @@ def test_build_run_command_includes_run_step() -> None:
         source_lang="en",
         target_lang="pl",
         run_step="edit",
+        context_window="5",
+        context_neighbor_max_chars="200",
+        context_segment_max_chars="1500",
     )
     cmd = build_run_command(["python", "-u", "translation_engine.py"], opts)
     assert "--run-step" in cmd
     idx = cmd.index("--run-step")
     assert idx + 1 < len(cmd)
     assert cmd[idx + 1] == "edit"
+    assert "--context-window" in cmd
+    assert cmd[cmd.index("--context-window") + 1] == "5"
+    assert "--context-neighbor-max-chars" in cmd
+    assert "--context-segment-max-chars" in cmd
+
+
+def test_build_context_hints_uses_neighbor_window() -> None:
+    chapter_order = [
+        ("s1", "Alpha one."),
+        ("s2", "Beta two."),
+        ("s3", "Gamma three."),
+        ("s4", "Delta four."),
+    ]
+    hints = build_context_hints(
+        chapter_order,
+        {"s2", "s3"},
+        window=1,
+        neighbor_max_chars=80,
+        per_segment_max_chars=300,
+    )
+    assert "s2" in hints and "s3" in hints
+    assert "Alpha one." in hints["s2"]
+    assert "Gamma three." in hints["s2"]
+    assert "Beta two." in hints["s3"]
+    assert "Delta four." in hints["s3"]
 
 
 def test_segment_ledger_seed_initializes_pending_and_tracks_completed(tmp_path: Path) -> None:

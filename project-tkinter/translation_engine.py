@@ -677,10 +677,23 @@ def build_batch_payload(seg_items: List[Tuple[str, str]]) -> str:
     return "\n".join(parts)
 
 
-def build_batch_prompt(base_prompt: str, glossary_snippet: str, batch_xml: str) -> str:
+def build_batch_prompt(
+    base_prompt: str,
+    glossary_snippet: str,
+    batch_xml: str,
+    *,
+    context_notes: str = "",
+) -> str:
     parts = [base_prompt.strip()]
     if glossary_snippet.strip():
         parts.append(glossary_snippet.strip())
+    if context_notes.strip():
+        parts.append(
+            "Context hints (neighbour segments):\n"
+            "- Use this only for coherence/disambiguation (pronouns, gender, references).\n"
+            "- Do NOT translate, copy or return the context section.\n"
+            f"{context_notes.strip()}"
+        )
     parts.append(
         "Zadanie:\n"
         "PrzetĹ‚umacz na jÄ™zyk polski PONIĹ»SZY XML (XHTML).\n"
@@ -851,6 +864,69 @@ class Segment:
     seg_id: str
     inner: str
     plain: str
+    context_hint: str = ""
+
+
+def _compact_context_text(text: str, max_chars: int) -> str:
+    max_len = max(24, int(max_chars))
+    s = re.sub(r"\s+", " ", str(text or "")).strip()
+    if len(s) <= max_len:
+        return s
+    return s[: max_len - 3].rstrip() + "..."
+
+
+def build_context_hints(
+    chapter_order: List[Tuple[str, str]],
+    target_segment_ids: Set[str],
+    *,
+    window: int,
+    neighbor_max_chars: int,
+    per_segment_max_chars: int,
+) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    if window <= 0 or not chapter_order or not target_segment_ids:
+        return out
+    w = max(1, int(window))
+    n_max = max(24, int(neighbor_max_chars))
+    p_max = max(80, int(per_segment_max_chars))
+    pos_map: Dict[str, int] = {sid: i for i, (sid, _) in enumerate(chapter_order)}
+    total = len(chapter_order)
+    for sid in target_segment_ids:
+        pos = pos_map.get(sid)
+        if pos is None:
+            continue
+        before = chapter_order[max(0, pos - w):pos]
+        after = chapter_order[pos + 1:min(total, pos + 1 + w)]
+        if not before and not after:
+            continue
+        before_txt = " || ".join(_compact_context_text(txt, n_max) for _, txt in before if str(txt or "").strip())
+        after_txt = " || ".join(_compact_context_text(txt, n_max) for _, txt in after if str(txt or "").strip())
+        lines: List[str] = [f"[seg id={sid}]"]
+        if before_txt:
+            lines.append(f"prev: {before_txt}")
+        if after_txt:
+            lines.append(f"next: {after_txt}")
+        hint = "\n".join(lines).strip()
+        if len(hint) > p_max:
+            hint = hint[: p_max - 3].rstrip() + "..."
+        if hint:
+            out[sid] = hint
+    return out
+
+
+def build_batch_context_notes(batch: List[Segment], *, max_total_chars: int = 7000) -> str:
+    blocks: List[str] = []
+    for seg in batch:
+        hint = str(seg.context_hint or "").strip()
+        if hint:
+            blocks.append(hint)
+    if not blocks:
+        return ""
+    note = "\n\n".join(blocks).strip()
+    limit = max(200, int(max_total_chars))
+    if len(note) > limit:
+        note = note[: limit - 3].rstrip() + "..."
+    return note
 
 
 def chunk_segments(segments: List[Segment], batch_max_chars: int, batch_max_segs: int) -> Iterable[List[Segment]]:
@@ -989,7 +1065,8 @@ def translate_single_segment(
         glossary_snip = pick_glossary_snippet(seg.plain, glossary_index)
 
     batch_xml = build_batch_payload([(seg.seg_id, seg.inner)])
-    prompt = build_batch_prompt(base_prompt, glossary_snip, batch_xml)
+    context_notes = str(seg.context_hint or "").strip()
+    prompt = build_batch_prompt(base_prompt, glossary_snip, batch_xml, context_notes=context_notes)
 
     resp = llm.generate(prompt, model=model)
     try:
@@ -1073,7 +1150,8 @@ def translate_batch_with_google_strategy(
             all_plain = "\n".join(s.plain for s in batch_local)
             glossary_snip = pick_glossary_snippet(all_plain, glossary_index)
 
-        prompt = build_batch_prompt(base_prompt, glossary_snip, batch_xml)
+        context_notes = build_batch_context_notes(batch_local)
+        prompt = build_batch_prompt(base_prompt, glossary_snip, batch_xml, context_notes=context_notes)
 
         resp = ""
         try:
@@ -1164,7 +1242,8 @@ def translate_batch_with_ollama_strategy(
         all_plain = "\n".join(s.plain for s in batch)
         glossary_snip = pick_glossary_snippet(all_plain, glossary_index)
 
-    prompt = build_batch_prompt(base_prompt, glossary_snip, batch_xml)
+    context_notes = build_batch_context_notes(batch)
+    prompt = build_batch_prompt(base_prompt, glossary_snip, batch_xml, context_notes=context_notes)
     resp = ""
     try:
         resp = llm.generate(prompt, model=model)
@@ -2149,6 +2228,9 @@ def translate_epub(
     checkpoint_json_path: Optional[Path] = None,
     polish_guard: bool = True,
     language_guard_config_path: Optional[Path] = None,
+    context_window: int = 0,
+    context_neighbor_max_chars: int = 180,
+    context_per_segment_max_chars: int = 1200,
     source_lang: str = "en",
     target_lang: str = "pl",
     tm: Optional[TranslationMemory] = None,
@@ -2166,6 +2248,14 @@ def translate_epub(
     if polish_guard and target_lang not in guard_profiles:
         print(f"[LANG-GUARD] no profile for target_lang={target_lang}; guard disabled.")
         polish_guard = False
+    ctx_window = max(0, int(context_window))
+    ctx_neighbor_max = max(24, int(context_neighbor_max_chars))
+    ctx_per_seg_max = max(80, int(context_per_segment_max_chars))
+    if ctx_window > 0:
+        print(
+            "[SMART-CONTEXT] "
+            f"window={ctx_window} neighbor_max={ctx_neighbor_max} per_seg_max={ctx_per_seg_max}"
+        )
     base_prompt = base_prompt.strip() + "\n\n" + build_language_instruction(source_lang, target_lang)
     model = llm.resolve_model()
     cache = load_cache(cache_path)
@@ -2276,6 +2366,7 @@ def translate_epub(
             elements = root.xpath(xpath)
 
             segs: List[Segment] = []
+            chapter_order: List[Tuple[str, str]] = []
             chapter_cache = 0
             chapter_tm = 0
             chapter_ledger = 0
@@ -2292,6 +2383,7 @@ def translate_epub(
 
                 seg_plain = etree.tostring(el, encoding="unicode", method="text")
                 sid = stable_id(chapter_path, i, seg_inner)
+                chapter_order.append((sid, seg_plain))
                 ledger_done_inner: Optional[str] = None
                 ledger_status = ""
                 if segment_ledger is not None:
@@ -2372,6 +2464,16 @@ def translate_epub(
                                 segment_ledger.mark_completed(chapter_path, sid, seg_plain, tm_hit, provider="tm", model=model)
                     else:
                         segs.append(Segment(idx=i, el=el, seg_id=sid, inner=seg_inner, plain=seg_plain))
+            if ctx_window > 0 and segs:
+                hint_map = build_context_hints(
+                    chapter_order,
+                    {s.seg_id for s in segs},
+                    window=ctx_window,
+                    neighbor_max_chars=ctx_neighbor_max,
+                    per_segment_max_chars=ctx_per_seg_max,
+                )
+                for seg in segs:
+                    seg.context_hint = str(hint_map.get(seg.seg_id, "") or "")
             chapter_new_total = len(segs)
 
             if chapter_cache > 0 or chapter_tm > 0 or chapter_ledger > 0:
@@ -2652,6 +2754,9 @@ def main() -> int:
     ap.add_argument("--semantic-gate-threshold", type=float, default=0.58, help="Prog semantic diff gate (0..1).")
     ap.add_argument("--semantic-gate-hard-threshold", type=float, default=0.42, help="Prog hard severity semantic gate (0..1).")
     ap.add_argument("--semantic-gate-min-chars", type=int, default=24, help="Min znakow do oceny semantic diff.")
+    ap.add_argument("--context-window", type=int, default=0, help="Liczba segmentow kontekstu przed i po kazdym segmencie.")
+    ap.add_argument("--context-neighbor-max-chars", type=int, default=180, help="Max znakow na pojedynczy segment kontekstu.")
+    ap.add_argument("--context-segment-max-chars", type=int, default=1200, help="Max znakow kontekstu przypisanych do jednego segmentu.")
 
     args = ap.parse_args()
     tags = tuple([t.strip() for t in args.tags.split(",") if t.strip()])
@@ -2750,6 +2855,9 @@ def main() -> int:
             checkpoint_json_path=args.checkpoint_json,
             polish_guard=not bool(args.no_polish_guard or args.no_language_guard),
             language_guard_config_path=args.language_guard_config,
+            context_window=max(0, int(args.context_window)),
+            context_neighbor_max_chars=max(24, int(args.context_neighbor_max_chars)),
+            context_per_segment_max_chars=max(80, int(args.context_segment_max_chars)),
             source_lang=args.source_lang,
             target_lang=args.target_lang,
             tm=tm_store,

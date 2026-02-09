@@ -254,10 +254,18 @@ Najwazniejsze pola:
 4. `Timeout`, `Attempts`, `Backoff`
 - mechanizmy ponawiania przy bledach.
 
-5. `Checkpoint co N plikow`
+5. `Smart context window`
+- liczba segmentow kontekstu przed i po aktualnym segmencie.
+- przyklad: `5` oznacza `5 poprzednich + 5 nastepnych`.
+
+6. `Context max chars (neighbor)` i `Context max chars (segment)`
+- limity rozmiaru kontekstu (kontrola kosztu tokenow).
+- im wyzsze, tym lepsza spojnosc, ale wiekszy koszt.
+
+7. `Checkpoint co N plikow`
 - zapis stanu wznowienia po rozdzialach.
 
-6. `Hard gate EPUBCheck`
+8. `Hard gate EPUBCheck`
 - blokuje finalizacje runu przy bledach struktury EPUB.
 
 ## 7.5 Uruchomienie
