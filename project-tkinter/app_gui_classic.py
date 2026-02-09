@@ -3905,6 +3905,24 @@ class TranslatorGUI:
             msg += "\n" + tail
         return False, msg
 
+    @staticmethod
+    def _first_invalid_int_label(values: List[Tuple[str, str]]) -> Optional[str]:
+        for label, raw in values:
+            try:
+                int(raw)
+            except Exception:
+                return label
+        return None
+
+    @staticmethod
+    def _first_invalid_float_label(values: List[Tuple[str, str]]) -> Optional[str]:
+        for label, raw in values:
+            try:
+                float(raw.replace(",", "."))
+            except Exception:
+                return label
+        return None
+
     def _validate(self) -> Optional[str]:
         required = [
             ("WejÄąâ€şciowy EPUB", self.input_epub_var.get().strip()),
@@ -3932,7 +3950,7 @@ class TranslatorGUI:
         if (self.target_lang_var.get().strip().lower() or "") not in SUPPORTED_TEXT_LANGS:
             return "NieprawidÄąâ€šowy jĂ„â„˘zyk docelowy."
 
-        for num_label, v in [
+        invalid_int_label = self._first_invalid_int_label([
             ("batch-max-segs", self.batch_max_segs_var.get().strip()),
             ("batch-max-chars", self.batch_max_chars_var.get().strip()),
             ("timeout", self.timeout_var.get().strip()),
@@ -3942,20 +3960,16 @@ class TranslatorGUI:
             ("context-window", self.context_window_var.get().strip()),
             ("context-neighbor-max-chars", self.context_neighbor_max_chars_var.get().strip()),
             ("context-segment-max-chars", self.context_segment_max_chars_var.get().strip()),
-        ]:
-            try:
-                int(v)
-            except Exception:
-                return f"Pole {num_label} musi byĂ„â€ˇ liczbĂ„â€¦ caÄąâ€škowitĂ„â€¦."
+        ])
+        if invalid_int_label is not None:
+            return f"Pole {invalid_int_label} musi byĂ„â€ˇ liczbĂ„â€¦ caÄąâ€škowitĂ„â€¦."
 
-        for num_label, v in [
+        invalid_float_label = self._first_invalid_float_label([
             ("sleep", self.sleep_var.get().strip()),
             ("temperature", self.temperature_var.get().strip()),
-        ]:
-            try:
-                float(v.replace(",", "."))
-            except Exception:
-                return f"Pole {num_label} musi byĂ„â€ˇ liczbĂ„â€¦."
+        ])
+        if invalid_float_label is not None:
+            return f"Pole {invalid_float_label} musi byĂ„â€ˇ liczbĂ„â€¦."
 
         runtime_err = core_validate_run_options(
             self._runtime_options(),
