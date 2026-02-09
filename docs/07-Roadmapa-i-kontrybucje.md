@@ -5,7 +5,7 @@
 - `M1`: zrealizowane.
 - `M2`: zrealizowane.
 - `M3`: zamrozone (blokada po stronie GitHub Wiki; bez wpływu na runtime aplikacji).
-- `M7`: uruchomiony szkielet techniczny (seria + slownik serii + auto-detekcja + merge glosariusza).
+- `M7`: domkniete (series manager: termy + style rules + lorebook + historia zmian, prompt augmentation kontekstem serii, orchestrator batch serii z raportem).
 - `M4`: domkniete (ledger orchestration upfront + twardy gate EPUBCheck + tokenized inline editor + dashboard ledger metrics + stale widoczny pasek ledgera + presety promptow Gemini w GUI + telemetry retry/timeout + export metryk do release notes + alert progowy ledgera).
 - `M5`: domkniete (nested-inline chips w edytorze + dodatkowe testy regresji + walidator integralnosci `&shy;/&nbsp;` z raportem po runie).
 - `M6`: domkniete (diff-aware retranslation + semantic diff gate + raport changed/reused/retranslated + auto-findings QA).
@@ -74,10 +74,11 @@ Jesli projekt oszczedza czas:
 - mniejsza liczba problemow z konfiguracja,
 - szybszy onboarding nowego urzadzenia.
 
-## 7.8. Kolejne milestone'y (po M1-M2, M3 zamrozone)
+## 7.8. Kolejne milestone'y (po M1-M2, M3 zamrozone, M4-M7 domkniete)
 
-1. `M4: Memory-First Translation Engine`
-2. `M7: Series Style Memory + Batch Library` (foundation active, kolejne incrementy w backlogu)
+1. Stabilizacja i utrzymanie M4-M7 (bugfixy + ergonomia).
+2. Odmrozenie `M3 / Wiki` po odblokowaniu backendu GitHub Wiki.
+3. Kolejny increment funkcjonalny po uzgodnieniu backlogu.
 
 Zakres i kryteria `Done` sa utrzymywane w:
 - `docs/09-Backlog-do-uzgodnienia.md`

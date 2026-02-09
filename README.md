@@ -11,12 +11,19 @@ EPUB translator desktop app for AI-powered translation, post-editing, and QA of 
 
 KEYWORDS: `EPUB translator`, `EPUB translator desktop app`, `EPUB translation tool`, `AI translation`, `ebook translator`, `Ollama translator`, `Google Gemini translation`, `Translation Memory`, `QA gate`, `Tkinter`, `Python`.
 
-## What it does
+## Unique strengths (not common in most EPUB tools)
+- idempotent processing with segment ledger (`done/processing/error/pending`) and safe resume after interruption
+- managed DB migrations with backup + rollback (`migration_runs`, startup recovery notice, DB Update panel)
+- security-first runtime gates (EPUBCheck hard gate + QA severity gate)
+- Smart Context window for neighboring segments (better pronouns/gender consistency)
+- Series Memory engine: per-series terms, style rules, lorebook, change history, series profile import/export
+- one-click series batch orchestration with aggregated series report (`series_batch_report_*.json/.md`)
+
+## Core capabilities you also get (industry-standard set)
 - EPUB translation (`translate`) and post-editing (`edit`)
 - EPUB validation
 - Translation Memory (TM) and segment cache
-- always-visible ledger progress strip in Run panel (`done/processing/error/pending`)
-- model-specific prompt presets in GUI (Gemini: `Book Balanced`, `Lovecraft Tone`, `Technical Manual`, `Polish Copyedit`)
+- model-specific prompt presets in GUI
 - QA findings workflow and QA gate
 - EPUB operations: front card, cover/image removal, segment editor
 - project queue workflow (`pending`, `run all`)
@@ -86,6 +93,7 @@ export GOOGLE_API_KEY="<YOUR_KEY>"
 - canonical translator: `project-tkinter/translation_engine.py`
 - both UI variants (`classic`, `horizon`) run on the same core/runtime contracts
 - prompt preset catalog: `project-tkinter/prompt_presets.json`
+- state-store abstraction layer (Repository step): `project-tkinter/studio_repository.py`
 
 ## Documentation
 - Tkinter user manual (PL): `project-tkinter/MANUAL_PL.md`

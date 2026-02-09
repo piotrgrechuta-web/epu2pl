@@ -7,7 +7,7 @@ Status:
 - `M4 domkniete`: memory-first translation (cache + decision memory + adaptive prompting), z domknietymi metrykami ledgera/retry/timeout i eksportem release notes,
 - `M5 zrealizowane`: EPUB-aware segmentacja i integralnosc markup (`&shy;`, inline tags),
 - `M6 zrealizowane`: diff-aware retranslation + semantic diff gate do recenzji,
-- `M7 w realizacji`: wdrozony szkielet serii (project->series, baza serii, manager terminow, merge glosariusza).
+- `M7 domkniete`: pelny series manager (termy + style rules + lorebook + historia), prompt augmentation kontekstem serii, orchestrator batch serii + raport.
 
 ## Cel
 
@@ -15,11 +15,8 @@ Zamienic roadmape na konkretne, mierzalne zadania z jasnym zakresem i kryteriami
 
 ## Aktywne milestone'y
 
-1. `M4: Memory-First Translation Engine`
-2. `M3: Workflow + Docs + Wiki (zamrozone)`
-3. `M5: EPUB-Aware Segmentation + Markup Integrity`
-4. `M6: Smart Retranslation + Semantic Diff QA`
-5. `M7: Series Style Memory + Batch Library`
+1. `M3: Workflow + Docs + Wiki (zamrozone)`
+2. Utrzymanie i stabilizacja M4-M7
 
 ## M1: UI Consistency + UX Telemetry
 
@@ -226,7 +223,7 @@ Status: `zrealizowane`:
 
 ## M7: Series Style Memory + Batch Library
 
-Status M7: `w realizacji` (foundation deployed).
+Status M7: `zrealizowane`.
 
 ### Issue #31: Profile stylu serii (tone memory)
 - Zakres:
@@ -239,15 +236,14 @@ Status M7: `w realizacji` (foundation deployed).
   - widoczna poprawa spojnosci stylu miedzy tomami.
 
 Status:
-- `szkielet wdrozony`:
+- `zrealizowane`:
 1. projekty maja `series_id` i `volume_no`,
 2. autodetekcja serii z metadanych EPUB (`OPF`),
 3. osobna baza serii (`data/series/<slug>/series.db`),
-4. panel `Slownik serii` (approve/reject/manual add),
-5. merge slownika serii z glosariuszem projektu na etapie runu.
-- `do domkniecia`:
-1. UI/DB dla jawnych "style rules" i "lorebook" per seria,
-2. wersjonowanie profili stylu (diff + historia zmian).
+4. panel `Series manager` (termy + `style_rules` + `lorebook` + historia zmian `change_log`),
+5. merge slownika serii z glosariuszem projektu na etapie runu,
+6. prompt augmentowany automatycznie kontekstem serii (style/lore/approved terms),
+7. import/export profilu serii (`series_profile.json`).
 
 ### Issue #32: Batch library + opcjonalny tor LoRA/QLoRA
 - Zakres:
@@ -260,14 +256,18 @@ Status:
   - dokumentacja oddziela tryb produkcyjny od eksperymentalnego fine-tuning.
 
 Status:
-- `plan` (brak wdrozenia wsadowego orchestratora biblioteki serii).
+- `zrealizowane`:
+1. orchestrator batch serii (queue po serii dla biezacego kroku `translate/edit`),
+2. uruchamianie run-all dla serii jednym kliknieciem,
+3. raport zbiorczy serii (`series_batch_report_*.json/.md`) z postepem i statusem projektow.
+- `poza zakresem M7`:
+1. eksperymentalny tor LoRA/QLoRA pozostaje opcjonalnym backlogiem R&D.
 
 ## Kolejnosc realizacji (zaktualizowana)
 
 1. `M4` utrzymanie i stabilizacja po wdrozeniu.
-2. Domkniecie `M7 / Issue 31` (style rules + lorebook + versioning).
-3. `M7 / Issue 32` (skalowanie batch + opcjonalny fine-tuning).
-4. `M3 / Issue 7` (Wiki backend + Home + sidebar) dopiero po odmrozeniu.
+2. `M7` utrzymanie i ergonomia po wdrozeniu.
+3. `M3 / Issue 7` (Wiki backend + Home + sidebar) dopiero po odmrozeniu.
 
 ## Definicja publikacji milestone
 

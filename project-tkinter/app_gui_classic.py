@@ -40,6 +40,7 @@ from epub_enhancer import (
     save_chapter_changes,
 )
 from studio_suite import StudioSuiteWindow
+from studio_repository import SQLiteStudioRepository
 from app_events import flush_event_log, log_event_jsonl
 from prompt_presets import filter_prompt_presets, load_prompt_presets, save_default_prompt_presets
 from runtime_core import (
@@ -66,7 +67,7 @@ PROMPT_PRESETS_FILE = Path(__file__).resolve().with_name("prompt_presets.json")
 GOOGLE_KEYRING_SERVICE = "epub-translator-studio"
 GOOGLE_KEYRING_USER = "google_api_key"
 EPUBCHECK_TIMEOUT_S = 120
-APP_RUNTIME_VERSION = "0.5.0"
+APP_RUNTIME_VERSION = "0.6.0"
 GLOBAL_PROGRESS_RE = re.compile(r"GLOBAL\s+(\d+)\s*/\s*(\d+)\s*\(([^)]*)\)\s*\|\s*(.*)")
 TOTAL_SEGMENTS_RE = re.compile(r"Segmenty\s+(?:Äąâ€šĂ„â€¦cznie|lacznie)\s*:\s*(\d+)", re.IGNORECASE)
 CACHE_SEGMENTS_RE = re.compile(r"Segmenty\s+z\s+cache\s*:\s*(\d+)", re.IGNORECASE)
@@ -145,6 +146,51 @@ def simple_prompt(root: tk.Tk, title: str, label: str, *, default_value: str = "
     return out["value"]
 
 
+def multiline_prompt(
+    root: tk.Tk,
+    title: str,
+    label: str,
+    *,
+    default_value: str = "",
+    width: int = 90,
+    height: int = 14,
+) -> Optional[str]:
+    win = tk.Toplevel(root)
+    win.title(title)
+    win.transient(root)
+    win.grab_set()
+    out: Dict[str, Optional[str]] = {"value": None}
+
+    frm = ttk.Frame(win, padding=12)
+    frm.pack(fill="both", expand=True)
+    frm.rowconfigure(1, weight=1)
+    frm.columnconfigure(0, weight=1)
+
+    ttk.Label(frm, text=label).grid(row=0, column=0, sticky="w")
+    editor = ScrolledText(frm, width=width, height=height, wrap="word")
+    editor.grid(row=1, column=0, sticky="nsew", pady=(6, 10))
+    if default_value:
+        editor.insert("1.0", str(default_value))
+    editor.focus_set()
+
+    btn = ttk.Frame(frm)
+    btn.grid(row=2, column=0, sticky="w")
+
+    def accept() -> None:
+        out["value"] = editor.get("1.0", "end-1c")
+        win.destroy()
+
+    def cancel() -> None:
+        out["value"] = None
+        win.destroy()
+
+    ttk.Button(btn, text="OK", command=accept).pack(side="left")
+    ttk.Button(btn, text="Anuluj", command=cancel).pack(side="left", padx=(8, 0))
+    win.bind("<Escape>", lambda _: cancel())
+    root.wait_window(win)
+    return out["value"]
+
+
 def load_google_api_key_from_keyring() -> str:
     try:
         import keyring  # type: ignore
@@ -185,6 +231,7 @@ class TranslatorGUI:
             recover_runtime_state=True,
             backup_paths=[SERIES_DATA_DIR],
         )
+        self.repo = SQLiteStudioRepository(self.db)
         self._startup_notices: List[str] = []
         if self.db.last_migration_summary:
             m = self.db.last_migration_summary
@@ -243,6 +290,7 @@ class TranslatorGUI:
         self.prompt_preset_by_label: Dict[str, Dict[str, str]] = {}
         self._ledger_counts: Dict[str, int] = {"PENDING": 0, "PROCESSING": 0, "COMPLETED": 0, "ERROR": 0}
         self._ledger_alert_key: Optional[Tuple[int, str, int]] = None
+        self.series_batch_context: Optional[Dict[str, Any]] = None
         self._reset_runtime_metrics()
 
         self._configure_main_window()
@@ -1871,46 +1919,168 @@ class TranslatorGUI:
         self.series_store.ensure_series_db(series_slug, display_name=series_name)
 
         win = tk.Toplevel(self.root)
-        win.title(f"Slownik serii: {series_name}")
+        win.title(f"Series manager: {series_name}")
         win.transient(self.root)
-        win.geometry("980x560")
+        win.geometry("1180x700")
 
         wrap = ttk.Frame(win, padding=12)
         wrap.pack(fill="both", expand=True)
-        wrap.rowconfigure(1, weight=1)
+        wrap.rowconfigure(2, weight=1)
         wrap.columnconfigure(0, weight=1)
 
         info_var = tk.StringVar(value="Status: gotowe")
         ttk.Label(
             wrap,
-            text="Terminy serii (proposed/approved/rejected). Uzywaj approve/reject, aby sterowac slownikiem serii.",
+            text="Series manager: termy, style rules, lorebook, historia zmian i batch serii.",
             style="Sub.TLabel",
         ).grid(row=0, column=0, sticky="w")
 
-        cols = ("id", "source", "target", "status", "confidence", "origin", "updated")
-        tree = ttk.Treeview(wrap, columns=cols, show="headings", height=18)
-        tree.grid(row=1, column=0, sticky="nsew", pady=(8, 8))
+        top_actions = ttk.Frame(wrap)
+        top_actions.grid(row=1, column=0, sticky="w", pady=(8, 6))
+
+        def queue_series_for_current_step() -> None:
+            step = (self.mode_var.get().strip().lower() or "translate")
+            queued = self._queue_series_projects(series_id, step)
+            self._refresh_projects(select_current=True)
+            info_var.set(f"Status: kolejka serii ({step}) -> dodano {queued} projektow")
+
+        def run_series_batch() -> None:
+            step = (self.mode_var.get().strip().lower() or "translate")
+            msg = (
+                f"Uruchomic batch serii '{series_name}' dla kroku '{step}'?\n\n"
+                "Aplikacja doda brakujace projekty do kolejki i uruchomi run-all."
+            )
+            if not self._ask_yes_no(msg, title="Series batch"):
+                return
+            self._start_series_batch_run(series_id, series_slug, series_name)
+            info_var.set(f"Status: uruchomiono batch serii ({step})")
+
+        def export_series_report() -> None:
+            report = self._write_series_batch_report(
+                series_id=series_id,
+                series_slug=series_slug,
+                series_name=series_name,
+                step=(self.mode_var.get().strip().lower() or "translate"),
+                outcome="manual-export",
+            )
+            if report is not None:
+                self._open_path(report)
+                info_var.set(f"Status: raport serii -> {report.name}")
+
+        ttk.Button(top_actions, text="Queue series (current step)", command=queue_series_for_current_step, style="Secondary.TButton").pack(side="left")
+        ttk.Button(top_actions, text="Run series batch", command=run_series_batch, style="Primary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(top_actions, text="Export series report", command=export_series_report, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+
+        tabs = ttk.Notebook(wrap)
+        tabs.grid(row=2, column=0, sticky="nsew")
+
+        terms_tab = ttk.Frame(tabs, padding=8)
+        style_tab = ttk.Frame(tabs, padding=8)
+        lore_tab = ttk.Frame(tabs, padding=8)
+        history_tab = ttk.Frame(tabs, padding=8)
+
+        tabs.add(terms_tab, text="Termy")
+        tabs.add(style_tab, text="Style rules")
+        tabs.add(lore_tab, text="Lorebook")
+        tabs.add(history_tab, text="Historia")
+
+        terms_tab.rowconfigure(0, weight=1)
+        terms_tab.columnconfigure(0, weight=1)
+        style_tab.rowconfigure(0, weight=1)
+        style_tab.columnconfigure(0, weight=1)
+        lore_tab.rowconfigure(0, weight=1)
+        lore_tab.columnconfigure(0, weight=1)
+        history_tab.rowconfigure(0, weight=1)
+        history_tab.columnconfigure(0, weight=1)
+
+        term_cols = ("id", "source", "target", "status", "confidence", "origin", "updated")
+        term_tree = ttk.Treeview(terms_tab, columns=term_cols, show="headings", height=14)
+        term_tree.grid(row=0, column=0, sticky="nsew")
         for c, label, width in [
             ("id", "ID", 60),
-            ("source", "Source term", 210),
-            ("target", "Target term", 230),
+            ("source", "Source term", 220),
+            ("target", "Target term", 240),
             ("status", "Status", 90),
             ("confidence", "Conf.", 70),
-            ("origin", "Origin", 120),
+            ("origin", "Origin", 130),
             ("updated", "Updated", 120),
         ]:
-            tree.heading(c, text=label)
-            tree.column(c, width=width, anchor="w")
-        ybar = ttk.Scrollbar(wrap, orient="vertical", command=tree.yview)
-        ybar.grid(row=1, column=1, sticky="ns", pady=(8, 8))
-        tree.configure(yscrollcommand=ybar.set)
+            term_tree.heading(c, text=label)
+            term_tree.column(c, width=width, anchor="w")
+        term_ybar = ttk.Scrollbar(terms_tab, orient="vertical", command=term_tree.yview)
+        term_ybar.grid(row=0, column=1, sticky="ns")
+        term_tree.configure(yscrollcommand=term_ybar.set)
+
+        style_cols = ("id", "rule_key", "instruction", "updated")
+        style_tree = ttk.Treeview(style_tab, columns=style_cols, show="headings", height=14)
+        style_tree.grid(row=0, column=0, sticky="nsew")
+        for c, label, width in [
+            ("id", "ID", 60),
+            ("rule_key", "Rule key", 220),
+            ("instruction", "Instruction", 620),
+            ("updated", "Updated", 120),
+        ]:
+            style_tree.heading(c, text=label)
+            style_tree.column(c, width=width, anchor="w")
+        style_ybar = ttk.Scrollbar(style_tab, orient="vertical", command=style_tree.yview)
+        style_ybar.grid(row=0, column=1, sticky="ns")
+        style_tree.configure(yscrollcommand=style_ybar.set)
+
+        lore_cols = ("id", "entry_key", "title", "status", "tags", "updated")
+        lore_tree = ttk.Treeview(lore_tab, columns=lore_cols, show="headings", height=14)
+        lore_tree.grid(row=0, column=0, sticky="nsew")
+        for c, label, width in [
+            ("id", "ID", 60),
+            ("entry_key", "Entry key", 180),
+            ("title", "Title", 300),
+            ("status", "Status", 100),
+            ("tags", "Tags", 260),
+            ("updated", "Updated", 120),
+        ]:
+            lore_tree.heading(c, text=label)
+            lore_tree.column(c, width=width, anchor="w")
+        lore_ybar = ttk.Scrollbar(lore_tab, orient="vertical", command=lore_tree.yview)
+        lore_ybar.grid(row=0, column=1, sticky="ns")
+        lore_tree.configure(yscrollcommand=lore_ybar.set)
+
+        history_cols = ("id", "entity_type", "entity_key", "action", "created", "payload")
+        history_tree = ttk.Treeview(history_tab, columns=history_cols, show="headings", height=14)
+        history_tree.grid(row=0, column=0, sticky="nsew")
+        for c, label, width in [
+            ("id", "ID", 60),
+            ("entity_type", "Type", 100),
+            ("entity_key", "Key", 220),
+            ("action", "Action", 100),
+            ("created", "Created", 120),
+            ("payload", "Payload", 500),
+        ]:
+            history_tree.heading(c, text=label)
+            history_tree.column(c, width=width, anchor="w")
+        history_ybar = ttk.Scrollbar(history_tab, orient="vertical", command=history_tree.yview)
+        history_ybar.grid(row=0, column=1, sticky="ns")
+        history_tree.configure(yscrollcommand=history_ybar.set)
+
+        style_cache: Dict[int, Dict[str, Any]] = {}
+        lore_cache: Dict[int, Dict[str, Any]] = {}
+
+        def _selected_id(tree: ttk.Treeview) -> Optional[int]:
+            sel = tree.selection()
+            if not sel:
+                return None
+            values = tree.item(sel[0], "values")
+            if not values:
+                return None
+            try:
+                return int(values[0])
+            except Exception:
+                return None
 
         def refresh_terms(status: Optional[str] = None) -> None:
-            for item in tree.get_children():
-                tree.delete(item)
-            rows = self.series_store.list_terms(series_slug, status=status, limit=1000)
+            for item in term_tree.get_children():
+                term_tree.delete(item)
+            rows = self.series_store.list_terms(series_slug, status=status, limit=2000)
             for row in rows:
-                tree.insert(
+                term_tree.insert(
                     "",
                     "end",
                     values=(
@@ -1923,48 +2093,120 @@ class TranslatorGUI:
                         str(row["updated_at"] or ""),
                     ),
                 )
-            info_var.set(f"Status: zaladowano {len(rows)} terminow")
+            info_var.set(f"Status: termy={len(rows)}")
 
-        def selected_term_id() -> Optional[int]:
-            sel = tree.selection()
-            if not sel:
-                return None
-            values = tree.item(sel[0], "values")
-            if not values:
-                return None
-            try:
-                return int(values[0])
-            except Exception:
-                return None
+        def refresh_style() -> None:
+            style_cache.clear()
+            for item in style_tree.get_children():
+                style_tree.delete(item)
+            rows = self.series_store.list_style_rules(series_slug, limit=2000)
+            for row in rows:
+                rid = int(row["id"])
+                payload = self.series_store._json_loads(str(row["value_json"] or "{}"), {})
+                style_cache[rid] = {
+                    "rule_key": str(row["rule_key"] or ""),
+                    "payload": payload,
+                    "updated_at": int(row["updated_at"] or 0),
+                }
+                if isinstance(payload, dict):
+                    text = str(payload.get("instruction") or payload.get("value") or payload.get("text") or "").strip()
+                    if not text:
+                        text = json.dumps(payload, ensure_ascii=False)
+                else:
+                    text = str(payload).strip()
+                style_tree.insert(
+                    "",
+                    "end",
+                    values=(rid, str(row["rule_key"] or ""), text, str(row["updated_at"] or "")),
+                )
+            info_var.set(f"Status: style_rules={len(rows)}")
 
-        def set_status(status: str) -> None:
-            tid = selected_term_id()
+        def refresh_lore(status: Optional[str] = None) -> None:
+            lore_cache.clear()
+            for item in lore_tree.get_children():
+                lore_tree.delete(item)
+            rows = self.series_store.list_lore_entries(series_slug, status=status, limit=3000)
+            for row in rows:
+                lid = int(row["id"])
+                tags = self.series_store._json_loads(str(row["tags_json"] or "[]"), [])
+                if not isinstance(tags, list):
+                    tags = []
+                clean_tags = [str(t).strip() for t in tags if str(t).strip()]
+                lore_cache[lid] = {
+                    "entry_key": str(row["entry_key"] or ""),
+                    "title": str(row["title"] or ""),
+                    "content": str(row["content"] or ""),
+                    "status": str(row["status"] or "draft"),
+                    "tags": clean_tags,
+                    "updated_at": int(row["updated_at"] or 0),
+                }
+                lore_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        lid,
+                        str(row["entry_key"] or ""),
+                        str(row["title"] or ""),
+                        str(row["status"] or ""),
+                        ", ".join(clean_tags),
+                        str(row["updated_at"] or ""),
+                    ),
+                )
+            info_var.set(f"Status: lore_entries={len(rows)}")
+
+        def refresh_history(entity_type: Optional[str] = None) -> None:
+            for item in history_tree.get_children():
+                history_tree.delete(item)
+            rows = self.series_store.list_change_log(series_slug, entity_type=entity_type, limit=1000)
+            for row in rows:
+                payload = str(row["payload_json"] or "")
+                payload_short = payload if len(payload) <= 180 else payload[:177] + "..."
+                history_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        int(row["id"]),
+                        str(row["entity_type"] or ""),
+                        str(row["entity_key"] or ""),
+                        str(row["action"] or ""),
+                        str(row["created_at"] or ""),
+                        payload_short,
+                    ),
+                )
+            info_var.set(f"Status: historia={len(rows)} wpisow")
+
+        def refresh_all() -> None:
+            refresh_terms()
+            refresh_style()
+            refresh_lore()
+            refresh_history()
+
+        def set_term_status(status: str) -> None:
+            tid = _selected_id(term_tree)
             if tid is None:
                 return
             self.series_store.set_term_status(series_slug, tid, status=status)
             refresh_terms()
+            refresh_history("term")
 
-        def add_manual_pair() -> None:
+        def add_manual_term() -> None:
             src = simple_prompt(win, "Nowy termin", "Source term:")
             if not src:
                 return
             tgt = simple_prompt(win, "Nowy termin", "Target term:")
             if not tgt:
                 return
-            try:
-                self.series_store.add_or_update_term(
-                    series_slug,
-                    source_term=src.strip(),
-                    target_term=tgt.strip(),
-                    status="approved",
-                    confidence=1.0,
-                    origin="manual",
-                    project_id=self.current_project_id,
-                )
-            except Exception as e:
-                self._msg_error(f"Nie udalo sie dodac terminu:\n{e}")
-                return
+            self.series_store.add_or_update_term(
+                series_slug,
+                source_term=src.strip(),
+                target_term=tgt.strip(),
+                status="approved",
+                confidence=1.0,
+                origin="manual",
+                project_id=self.current_project_id,
+            )
             refresh_terms()
+            refresh_history("term")
 
         def learn_from_project_tm() -> None:
             if self.current_project_id is None:
@@ -1972,26 +2214,196 @@ class TranslatorGUI:
                 return
             rows = [dict(r) for r in self.db.list_tm_segments(project_id=self.current_project_id, limit=2500)]
             added = self.series_store.learn_terms_from_tm(series_slug, rows, project_id=self.current_project_id)
-            info_var.set(f"Status: dodano {added} nowych propozycji z TM projektu")
+            info_var.set(f"Status: dodano {added} propozycji z TM")
             refresh_terms()
+            refresh_history("term")
 
         def export_glossary() -> None:
             out = self.series_store.export_approved_glossary(series_slug)
             self._open_path(out)
-            info_var.set(f"Status: wyeksportowano {out.name}")
+            info_var.set(f"Status: export -> {out.name}")
 
-        btn = ttk.Frame(wrap)
-        btn.grid(row=2, column=0, sticky="w")
-        ttk.Button(btn, text="Refresh", command=lambda: refresh_terms()).pack(side="left")
-        ttk.Button(btn, text="Only proposed", command=lambda: refresh_terms("proposed"), style="Secondary.TButton").pack(side="left", padx=(8, 0))
-        ttk.Button(btn, text="Approve", command=lambda: set_status("approved"), style="Primary.TButton").pack(side="left", padx=(8, 0))
-        ttk.Button(btn, text="Reject", command=lambda: set_status("rejected"), style="Danger.TButton").pack(side="left", padx=(8, 0))
-        ttk.Button(btn, text="Add manual", command=add_manual_pair, style="Secondary.TButton").pack(side="left", padx=(8, 0))
-        ttk.Button(btn, text="Learn from TM", command=learn_from_project_tm, style="Secondary.TButton").pack(side="left", padx=(8, 0))
-        ttk.Button(btn, text="Export approved glossary", command=export_glossary, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        def add_or_edit_style(default_key: str = "", default_instr: str = "") -> None:
+            rule_key = simple_prompt(win, "Style rule", "Rule key:", default_value=default_key)
+            if not rule_key:
+                return
+            instruction = multiline_prompt(
+                win,
+                "Style rule",
+                "Instruction (applied to series prompt):",
+                default_value=default_instr,
+                width=95,
+                height=10,
+            )
+            if instruction is None:
+                return
+            self.series_store.upsert_style_rule(
+                series_slug,
+                rule_key=rule_key.strip(),
+                value={"instruction": instruction.strip(), "source": "manual"},
+            )
+            refresh_style()
+            refresh_history("style_rule")
+
+        def edit_selected_style() -> None:
+            rid = _selected_id(style_tree)
+            if rid is None:
+                return
+            row = style_cache.get(rid)
+            if not row:
+                return
+            payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+            add_or_edit_style(
+                default_key=str(row.get("rule_key") or ""),
+                default_instr=str((payload or {}).get("instruction") or ""),
+            )
+
+        def delete_selected_style() -> None:
+            rid = _selected_id(style_tree)
+            if rid is None:
+                return
+            if not self._ask_yes_no("Usunac wybrana style rule?", title="Style rule"):
+                return
+            self.series_store.delete_style_rule(series_slug, rid)
+            refresh_style()
+            refresh_history("style_rule")
+
+        def add_or_edit_lore(default: Optional[Dict[str, Any]] = None) -> None:
+            default = default or {}
+            title = simple_prompt(win, "Lore entry", "Title:", default_value=str(default.get("title") or ""))
+            if not title:
+                return
+            key = simple_prompt(
+                win,
+                "Lore entry",
+                "Entry key (slug, optional):",
+                default_value=str(default.get("entry_key") or ""),
+            )
+            content = multiline_prompt(
+                win,
+                "Lore entry",
+                "Content:",
+                default_value=str(default.get("content") or ""),
+                width=95,
+                height=12,
+            )
+            if content is None or not content.strip():
+                return
+            tags_raw = simple_prompt(
+                win,
+                "Lore entry",
+                "Tags (comma separated):",
+                default_value=", ".join([str(t) for t in (default.get("tags") or [])]),
+            )
+            status = simple_prompt(
+                win,
+                "Lore entry",
+                "Status (draft/active/archived):",
+                default_value=str(default.get("status") or "draft"),
+            )
+            tags = [x.strip() for x in str(tags_raw or "").split(",") if x.strip()]
+            self.series_store.upsert_lore_entry(
+                series_slug,
+                entry_key=str(key or "").strip() or str(default.get("entry_key") or ""),
+                title=title.strip(),
+                content=content.strip(),
+                tags=tags,
+                status=str(status or "draft"),
+            )
+            refresh_lore()
+            refresh_history("lore")
+
+        def edit_selected_lore() -> None:
+            lid = _selected_id(lore_tree)
+            if lid is None:
+                return
+            row = lore_cache.get(lid)
+            if not row:
+                return
+            add_or_edit_lore(default=row)
+
+        def set_selected_lore_status(status: str) -> None:
+            lid = _selected_id(lore_tree)
+            if lid is None:
+                return
+            self.series_store.set_lore_status(series_slug, lid, status)
+            refresh_lore()
+            refresh_history("lore")
+
+        def delete_selected_lore() -> None:
+            lid = _selected_id(lore_tree)
+            if lid is None:
+                return
+            if not self._ask_yes_no("Usunac wpis lore?", title="Lorebook"):
+                return
+            self.series_store.delete_lore_entry(series_slug, lid)
+            refresh_lore()
+            refresh_history("lore")
+
+        def export_series_profile() -> None:
+            out = self.series_store.export_series_profile(series_slug)
+            self._open_path(out)
+            info_var.set(f"Status: export profile -> {out.name}")
+
+        def import_series_profile() -> None:
+            picked = filedialog.askopenfilename(
+                title="Import profile JSON",
+                initialdir=str(self.workdir),
+                filetypes=[("JSON", "*.json"), ("All", "*.*")],
+            )
+            if not picked:
+                return
+            try:
+                stats = self.series_store.import_series_profile(series_slug, Path(picked))
+            except Exception as e:
+                self._msg_error(f"Import profile failed:\n{e}")
+                return
+            refresh_all()
+            info_var.set(
+                "Status: import profile -> "
+                f"style+{int(stats.get('style_added', 0))}, "
+                f"lore+{int(stats.get('lore_added', 0))}, "
+                f"terms+{int(stats.get('terms_added', 0))}"
+            )
+
+        term_btn = ttk.Frame(terms_tab)
+        term_btn.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Button(term_btn, text="Refresh", command=refresh_terms).pack(side="left")
+        ttk.Button(term_btn, text="Only proposed", command=lambda: refresh_terms("proposed"), style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(term_btn, text="Approve", command=lambda: set_term_status("approved"), style="Primary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(term_btn, text="Reject", command=lambda: set_term_status("rejected"), style="Danger.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(term_btn, text="Add manual", command=add_manual_term, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(term_btn, text="Learn from TM", command=learn_from_project_tm, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(term_btn, text="Export glossary", command=export_glossary, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+
+        style_btn = ttk.Frame(style_tab)
+        style_btn.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Button(style_btn, text="Refresh", command=refresh_style).pack(side="left")
+        ttk.Button(style_btn, text="Add style rule", command=lambda: add_or_edit_style(), style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(style_btn, text="Edit selected", command=edit_selected_style, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(style_btn, text="Delete selected", command=delete_selected_style, style="Danger.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(style_btn, text="Export series profile", command=export_series_profile, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(style_btn, text="Import series profile", command=import_series_profile, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+
+        lore_btn = ttk.Frame(lore_tab)
+        lore_btn.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Button(lore_btn, text="Refresh", command=lambda: refresh_lore()).pack(side="left")
+        ttk.Button(lore_btn, text="Only active", command=lambda: refresh_lore("active"), style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(lore_btn, text="Add entry", command=lambda: add_or_edit_lore(), style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(lore_btn, text="Edit selected", command=edit_selected_lore, style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(lore_btn, text="Set active", command=lambda: set_selected_lore_status("active"), style="Primary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(lore_btn, text="Archive", command=lambda: set_selected_lore_status("archived"), style="Danger.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(lore_btn, text="Delete selected", command=delete_selected_lore, style="Danger.TButton").pack(side="left", padx=(8, 0))
+
+        hist_btn = ttk.Frame(history_tab)
+        hist_btn.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Button(hist_btn, text="Refresh", command=lambda: refresh_history()).pack(side="left")
+        ttk.Button(hist_btn, text="Only terms", command=lambda: refresh_history("term"), style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(hist_btn, text="Only style", command=lambda: refresh_history("style_rule"), style="Secondary.TButton").pack(side="left", padx=(8, 0))
+        ttk.Button(hist_btn, text="Only lore", command=lambda: refresh_history("lore"), style="Secondary.TButton").pack(side="left", padx=(8, 0))
 
         ttk.Label(wrap, textvariable=info_var, style="Sub.TLabel").grid(row=3, column=0, sticky="w", pady=(8, 0))
-        refresh_terms()
+        refresh_all()
 
     def _default_project_values(self, source_epub: Path) -> Dict[str, Any]:
         stem = source_epub.stem
@@ -2108,9 +2520,129 @@ class TranslatorGUI:
             return
         step = self.mode_var.get().strip() or "translate"
         self._save_project()
-        self.db.mark_project_pending(self.current_project_id, step)
+        self.repo.mark_project_pending(self.current_project_id, step)
         self._refresh_projects(select_current=True)
         self._set_status(self.tr("status.project_queued", "Project queued ({step})", step=step), "ready")
+
+    def _queue_series_projects(self, series_id: int, step: str) -> int:
+        sid = int(series_id)
+        want_step = (step or "translate").strip().lower()
+        if want_step not in {"translate", "edit"}:
+            want_step = "translate"
+        summaries = self.repo.list_projects_with_stage_summary()
+        summary_by_id = {int(r["id"]): r for r in summaries}
+        queued = 0
+        for project in self.repo.list_projects_for_series(sid, include_deleted=False):
+            pid = int(project["id"])
+            status = str(project["status"] or "idle").strip().lower()
+            if status == "running":
+                continue
+            summary = summary_by_id.get(pid)
+            if summary is None:
+                continue
+            tr_done = bool((summary.get("translate") or {}).get("is_complete"))
+            ed_done = bool((summary.get("edit") or {}).get("is_complete"))
+            if want_step == "translate":
+                should_queue = not tr_done
+            else:
+                should_queue = tr_done and not ed_done
+            if not should_queue:
+                continue
+            self.repo.mark_project_pending(pid, want_step)
+            queued += 1
+        return queued
+
+    def _write_series_batch_report(
+        self,
+        *,
+        series_id: int,
+        series_slug: str,
+        series_name: str,
+        step: str,
+        outcome: str,
+    ) -> Optional[Path]:
+        clean_slug = str(series_slug or "").strip()
+        if not clean_slug:
+            return None
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        summaries = self.repo.list_projects_with_stage_summary()
+        summary_by_id = {int(r["id"]): r for r in summaries}
+        projects_payload: List[Dict[str, Any]] = []
+        for project in self.repo.list_projects_for_series(int(series_id), include_deleted=False):
+            pid = int(project["id"])
+            summary = summary_by_id.get(pid)
+            if summary is None:
+                continue
+            qa_open = self.repo.count_open_qa_findings(pid)
+            projects_payload.append(
+                {
+                    "project_id": pid,
+                    "name": str(project["name"] or ""),
+                    "volume_no": project["volume_no"],
+                    "status": str(project["status"] or ""),
+                    "next_action": str(summary.get("next_action") or ""),
+                    "translate": summary.get("translate") or {},
+                    "edit": summary.get("edit") or {},
+                    "qa_open": qa_open,
+                }
+            )
+
+        counts = {"idle": 0, "pending": 0, "running": 0, "error": 0, "done": 0}
+        for item in projects_payload:
+            st = str(item.get("status") or "idle").strip().lower() or "idle"
+            if st in counts:
+                counts[st] += 1
+            if bool((item.get("edit") or {}).get("is_complete")):
+                counts["done"] += 1
+
+        payload = {
+            "series_id": int(series_id),
+            "series_slug": clean_slug,
+            "series_name": str(series_name or clean_slug),
+            "step": str(step or "translate"),
+            "outcome": str(outcome or "finished"),
+            "generated_at": int(time.time()),
+            "counts": counts,
+            "projects": projects_payload,
+        }
+        out_dir = SERIES_DATA_DIR / clean_slug / "generated"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_json = out_dir / f"series_batch_report_{ts}.json"
+        out_md = out_dir / f"series_batch_report_{ts}.md"
+        out_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        md_lines: List[str] = [
+            f"# Series Batch Report: {str(series_name or clean_slug)}",
+            "",
+            f"- generated_at: {ts}",
+            f"- step: {str(step or 'translate')}",
+            f"- outcome: {str(outcome or 'finished')}",
+            f"- counts: idle={counts['idle']} pending={counts['pending']} running={counts['running']} error={counts['error']} done={counts['done']}",
+            "",
+            "## Projects",
+            "",
+            "| ID | Volume | Name | Status | Next | Tr done/total | Edit done/total | QA open |",
+            "|---:|---:|---|---|---|---:|---:|---:|",
+        ]
+        for item in projects_payload:
+            tr = item.get("translate") or {}
+            ed = item.get("edit") or {}
+            md_lines.append(
+                "| {pid} | {vol} | {name} | {status} | {next} | {tr_done}/{tr_total} | {ed_done}/{ed_total} | {qa} |".format(
+                    pid=int(item.get("project_id") or 0),
+                    vol=str(item.get("volume_no") if item.get("volume_no") is not None else "-"),
+                    name=str(item.get("name") or "").replace("|", "/"),
+                    status=str(item.get("status") or ""),
+                    next=str(item.get("next_action") or ""),
+                    tr_done=int((tr.get("done") or 0)),
+                    tr_total=int((tr.get("total") or 0)),
+                    ed_done=int((ed.get("done") or 0)),
+                    ed_total=int((ed.get("total") or 0)),
+                    qa=int(item.get("qa_open") or 0),
+                )
+            )
+        out_md.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+        return out_json
 
     def _run_next_pending(self) -> None:
         self._run_next_pending_internal(show_messages=True)
@@ -2120,7 +2652,7 @@ class TranslatorGUI:
             if show_messages:
                 self._msg_info(self.tr("info.process_running", "Proces juÄąÄ˝ dziaÄąâ€ša."))
             return False
-        nxt = self.db.get_next_pending_project()
+        nxt = self.repo.get_next_pending_project()
         if nxt is None:
             self._set_status(self.tr("status.no_pending", "No pending projects"), "ready")
             self.queue_status_var.set(self.tr("status.queue.empty", "Queue: empty"))
@@ -2146,8 +2678,47 @@ class TranslatorGUI:
             self.run_all_btn.configure(state="normal")
             self.stop_run_all_btn.configure(state="disabled")
 
+    def _start_series_batch_run(self, series_id: int, series_slug: str, series_name: str) -> None:
+        step = (self.mode_var.get().strip().lower() or "translate")
+        queued = self._queue_series_projects(int(series_id), step)
+        if queued <= 0:
+            self._msg_info(f"Brak projektow serii do kolejkowania dla kroku '{step}'.")
+            return
+        self._refresh_projects(select_current=True)
+        self.series_batch_context = {
+            "series_id": int(series_id),
+            "series_slug": str(series_slug or ""),
+            "series_name": str(series_name or ""),
+            "step": step,
+            "started_at": int(time.time()),
+            "queued_count": int(queued),
+            "stopped": False,
+        }
+        self._set_status(f"Series batch queued: {queued} ({step})", "ready")
+        self._start_run_all_pending()
+
+    def _finalize_series_batch(self, outcome: str) -> None:
+        ctx = self.series_batch_context
+        if not ctx:
+            return
+        self.series_batch_context = None
+        try:
+            report = self._write_series_batch_report(
+                series_id=int(ctx.get("series_id") or 0),
+                series_slug=str(ctx.get("series_slug") or ""),
+                series_name=str(ctx.get("series_name") or ""),
+                step=str(ctx.get("step") or "translate"),
+                outcome=str(outcome or "finished"),
+            )
+            if report is not None:
+                self.log_queue.put(f"[SERIES-BATCH] Report: {report}\n")
+        except Exception as e:
+            self.log_queue.put(f"[SERIES-BATCH] Report failed: {e}\n")
+
     def _stop_run_all_pending(self) -> None:
         self.run_all_active = False
+        if self.series_batch_context is not None:
+            self.series_batch_context["stopped"] = True
         self.queue_status_var.set(self.tr("status.queue.stopping", "Queue: stopping after current task"))
         self.run_all_btn.configure(state="normal")
         self.stop_run_all_btn.configure(state="disabled")
@@ -2155,6 +2726,9 @@ class TranslatorGUI:
     def _continue_run_all(self) -> None:
         if not self.run_all_active:
             self.queue_status_var.set(self.tr("status.queue.idle", "Queue: idle"))
+            if self.series_batch_context is not None:
+                outcome = "stopped" if bool(self.series_batch_context.get("stopped")) else "finished"
+                self._finalize_series_batch(outcome)
             return
         started = self._run_next_pending_internal(show_messages=False)
         if not started:
@@ -2162,6 +2736,8 @@ class TranslatorGUI:
             self.queue_status_var.set(self.tr("status.queue.finished", "Queue: finished"))
             self.run_all_btn.configure(state="normal")
             self.stop_run_all_btn.configure(state="disabled")
+            if self.series_batch_context is not None:
+                self._finalize_series_batch("finished")
 
     def _format_ts(self, ts: Optional[int]) -> str:
         if ts is None:
@@ -3025,6 +3601,42 @@ class TranslatorGUI:
             return None, None
         return str(series_row["slug"] or ""), str(series_row["name"] or "")
 
+    def _current_series_id(self) -> Optional[int]:
+        series_id = self._selected_series_id()
+        if series_id is not None:
+            return series_id
+        if self.current_project_id is None:
+            return None
+        row = self.db.get_project(self.current_project_id)
+        if row is None or row["series_id"] is None:
+            return None
+        return int(row["series_id"])
+
+    def _effective_prompt_for_run(self) -> str:
+        base_prompt_raw = self.prompt_var.get().strip()
+        if not base_prompt_raw:
+            return base_prompt_raw
+        base_prompt = Path(base_prompt_raw)
+        if not base_prompt.exists():
+            return base_prompt_raw
+
+        series_slug, series_name = self._current_series_context()
+        if not series_slug:
+            return base_prompt_raw
+        step = (self.mode_var.get().strip().lower() or "translate")
+        self.series_store.ensure_series_db(series_slug, display_name=series_name or "")
+        out_path = SERIES_DATA_DIR / series_slug / "generated" / f"prompt_{step}_project_{self.current_project_id or 0}.txt"
+        try:
+            out = self.series_store.build_augmented_prompt(
+                series_slug,
+                base_prompt_path=base_prompt,
+                output_path=out_path,
+                run_step=step,
+            )
+            return str(out)
+        except Exception:
+            return base_prompt_raw
+
     def _effective_glossary_for_run(self) -> str:
         project_glossary_raw = self.glossary_var.get().strip()
         project_glossary = Path(project_glossary_raw) if project_glossary_raw else None
@@ -3060,12 +3672,13 @@ class TranslatorGUI:
             self.log_queue.put(f"[SERIES] Dodano {added} proponowanych terminow do serii '{series_name}'.\n")
 
     def _build_command(self) -> List[str]:
+        effective_prompt = self._effective_prompt_for_run()
         effective_glossary = self._effective_glossary_for_run() if bool(self.use_glossary_var.get()) else self.glossary_var.get().strip()
         opts = CoreRunOptions(
             provider=self.provider_var.get().strip(),
             input_epub=self.input_epub_var.get().strip(),
             output_epub=self.output_epub_var.get().strip(),
-            prompt=self.prompt_var.get().strip(),
+            prompt=effective_prompt,
             model=self.model_var.get().strip(),
             batch_max_segs=self.batch_max_segs_var.get().strip(),
             batch_max_chars=self.batch_max_chars_var.get().strip(),
@@ -3566,6 +4179,8 @@ class TranslatorGUI:
                 self.root.after(0, lambda: self.stop_btn.configure(state="disabled"))
                 if self.run_all_active:
                     self.root.after(200, self._continue_run_all)
+                elif self.series_batch_context is not None and bool(self.series_batch_context.get("stopped")):
+                    self.root.after(200, lambda: self._finalize_series_batch("stopped"))
 
         threading.Thread(target=runner, daemon=True).start()
 

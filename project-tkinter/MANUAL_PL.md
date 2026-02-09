@@ -413,9 +413,22 @@ Cel:
 Przebieg:
 1. Przypisz projekt do serii.
 2. Ustaw numer tomu.
-3. Po runie program moze zaproponowac terminy z TM.
-4. W `Slownik serii` zatwierdzaj terminy.
-5. Zatwierdzone terminy trafiaja do scalonego glosariusza kolejnych runow.
+3. Otworz `Slownik serii` (Series manager).
+4. Zakladka `Termy`:
+- approve/reject terminow,
+- `Learn from TM` aby zasolic propozycje z pamieci tlumaczen,
+- `Export glossary` dla zatwierdzonych terminow.
+5. Zakladka `Style rules`:
+- dodaj reguly stylu serii (tone, dialog, interpunkcja, narracja),
+- reguly sa dolaczane do promptu runu jako kontekst serii.
+6. Zakladka `Lorebook`:
+- dodaj fakty swiata i postaci,
+- status `active` oznacza, ze wpis idzie do kontekstu promptu.
+7. Zakladka `Historia`:
+- podglad audytu zmian (terms/style/lore),
+- sluzy jako wersjonowanie i szybki diff operacyjny.
+8. `Export/Import series profile`:
+- przenoszenie stylu/lore/approved terms miedzy seriami lub komputerami.
 
 ## 11. Kolejka projektow i praca seryjna
 
@@ -424,6 +437,12 @@ Scenariusz:
 2. Kliknij `Run all pending`.
 3. Program wykonuje projekty po kolei.
 4. `Stop run-all` zatrzyma po biezacym zadaniu.
+
+Scenariusz seryjny (M7):
+1. Wejdz w `Slownik serii`.
+2. Kliknij `Queue series (current step)`.
+3. Kliknij `Run series batch`.
+4. Po zakonczeniu sprawdz `Export series report` albo plik `series_batch_report_*.md`.
 
 Po nowej poprawce reliability:
 - jesli aplikacja padnie w trakcie runu, przy nast. starcie statusy `running` sa automatycznie naprawiane do stanu odzyskiwalnego.

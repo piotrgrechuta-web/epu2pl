@@ -24,6 +24,8 @@ else:
 
 DB_FILE = "translator_studio.db"
 SCHEMA_VERSION = 8
+SCHEMA_META_KEY = "schema_version"
+SCHEMA_META_ALIAS_KEY = "db_version"
 LOG = logging.getLogger(__name__)
 
 
@@ -273,9 +275,24 @@ class ProjectDB:
         if "series_id" in project_cols:
             cur.execute("CREATE INDEX IF NOT EXISTS idx_projects_series ON projects(series_id, updated_at DESC)")
 
-        version = self._meta_get("schema_version")
-        if version is None:
-            self._meta_set("schema_version", "1")
+        version = self._meta_get(SCHEMA_META_KEY)
+        alias = self._meta_get(SCHEMA_META_ALIAS_KEY)
+        if version is None and alias is None:
+            self._set_schema_version_meta(1)
+        elif version is None and alias is not None:
+            self._meta_set(SCHEMA_META_KEY, str(alias).strip())
+        elif version is not None and alias is None:
+            self._meta_set(SCHEMA_META_ALIAS_KEY, str(version).strip())
+        elif str(version).strip() != str(alias).strip():
+            LOG.warning(
+                "Schema metadata mismatch (%s=%r, %s=%r). Using %s.",
+                SCHEMA_META_KEY,
+                version,
+                SCHEMA_META_ALIAS_KEY,
+                alias,
+                SCHEMA_META_KEY,
+            )
+            self._meta_set(SCHEMA_META_ALIAS_KEY, str(version).strip())
         self.conn.commit()
 
     def _ensure_migration_tracking_table(self, cur: sqlite3.Cursor) -> None:
@@ -524,8 +541,32 @@ class ProjectDB:
             "rows": rows,
         }
 
+    def _set_schema_version_meta(self, version: int) -> None:
+        raw = str(int(version))
+        self._meta_set(SCHEMA_META_KEY, raw)
+        self._meta_set(SCHEMA_META_ALIAS_KEY, raw)
+
     def _schema_version(self) -> int:
-        raw = self._meta_get("schema_version")
+        raw = self._meta_get(SCHEMA_META_KEY)
+        alias = self._meta_get(SCHEMA_META_ALIAS_KEY)
+        if raw is None and alias is not None:
+            raw = alias
+            self._meta_set(SCHEMA_META_KEY, str(alias).strip())
+            self.conn.commit()
+        elif raw is not None and alias is None:
+            self._meta_set(SCHEMA_META_ALIAS_KEY, str(raw).strip())
+            self.conn.commit()
+        elif raw is not None and alias is not None and str(raw).strip() != str(alias).strip():
+            LOG.warning(
+                "Schema metadata mismatch (%s=%r, %s=%r). Using %s.",
+                SCHEMA_META_KEY,
+                raw,
+                SCHEMA_META_ALIAS_KEY,
+                alias,
+                SCHEMA_META_KEY,
+            )
+            self._meta_set(SCHEMA_META_ALIAS_KEY, str(raw).strip())
+            self.conn.commit()
         if raw is None:
             return 0
         try:
@@ -551,7 +592,7 @@ class ProjectDB:
         current = self._schema_version()
         if current <= 0:
             current = 1
-            self._meta_set("schema_version", "1")
+            self._set_schema_version_meta(1)
             self.conn.commit()
         if current >= SCHEMA_VERSION:
             self._ensure_schema_integrity()
@@ -572,7 +613,7 @@ class ProjectDB:
                 )
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_events_created ON audit_events(created_at DESC)")
                 current = 2
-                self._meta_set("schema_version", str(current))
+                self._set_schema_version_meta(current)
                 self.conn.commit()
             elif current == 2:
                 cur.execute(
@@ -598,7 +639,7 @@ class ProjectDB:
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_qa_project_status ON qa_findings(project_id, status)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_qa_project_step ON qa_findings(project_id, step)")
                 current = 3
-                self._meta_set("schema_version", str(current))
+                self._set_schema_version_meta(current)
                 self.conn.commit()
             elif current == 3:
                 cur.execute(
@@ -618,7 +659,7 @@ class ProjectDB:
                 )
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_qa_reviews_project_step ON qa_reviews(project_id, step, updated_at DESC)")
                 current = 4
-                self._meta_set("schema_version", str(current))
+                self._set_schema_version_meta(current)
                 self.conn.commit()
             elif current == 4:
                 # Assignment + SLA fields for QA findings.
@@ -631,7 +672,7 @@ class ProjectDB:
                     cur.execute("ALTER TABLE qa_findings ADD COLUMN escalation_status TEXT NOT NULL DEFAULT 'none'")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_qa_due ON qa_findings(project_id, due_at)")
                 current = 5
-                self._meta_set("schema_version", str(current))
+                self._set_schema_version_meta(current)
                 self.conn.commit()
             elif current == 5:
                 cols = {str(r["name"]) for r in self.conn.execute("PRAGMA table_info(projects)").fetchall()}
@@ -640,7 +681,7 @@ class ProjectDB:
                 if "target_lang" not in cols:
                     cur.execute("ALTER TABLE projects ADD COLUMN target_lang TEXT NOT NULL DEFAULT 'pl'")
                 current = 6
-                self._meta_set("schema_version", str(current))
+                self._set_schema_version_meta(current)
                 self.conn.commit()
             elif current == 6:
                 cols = {str(r["name"]) for r in self.conn.execute("PRAGMA table_info(qa_findings)").fetchall()}
@@ -648,7 +689,7 @@ class ProjectDB:
                     cur.execute("ALTER TABLE qa_findings ADD COLUMN segment_id TEXT NOT NULL DEFAULT ''")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_qa_project_segment ON qa_findings(project_id, step, chapter_path, segment_id)")
                 current = 7
-                self._meta_set("schema_version", str(current))
+                self._set_schema_version_meta(current)
                 self.conn.commit()
             elif current == 7:
                 cur.execute(
@@ -672,7 +713,7 @@ class ProjectDB:
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_series_name ON series(name)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_projects_series ON projects(series_id, updated_at DESC)")
                 current = 8
-                self._meta_set("schema_version", str(current))
+                self._set_schema_version_meta(current)
                 self.conn.commit()
             else:
                 raise RuntimeError(f"Nieznana sciezka migracji z wersji {current}")
@@ -770,7 +811,7 @@ class ProjectDB:
         cur.execute("CREATE INDEX IF NOT EXISTS idx_qa_reviews_project_step ON qa_reviews(project_id, step, updated_at DESC)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_series_name ON series(name)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_projects_series ON projects(series_id, updated_at DESC)")
-        self._meta_set("schema_version", str(SCHEMA_VERSION))
+        self._set_schema_version_meta(SCHEMA_VERSION)
         self.conn.commit()
 
     def log_audit_event(self, event_type: str, payload: Dict[str, Any]) -> None:
@@ -1185,6 +1226,26 @@ class ProjectDB:
     def count_projects_for_series(self, series_id: int) -> int:
         row = self.conn.execute("SELECT COUNT(*) AS c FROM projects WHERE series_id = ?", (int(series_id),)).fetchone()
         return int(row["c"] or 0) if row else 0
+
+    def list_projects_for_series(self, series_id: int, *, include_deleted: bool = False) -> List[sqlite3.Row]:
+        sid = int(series_id)
+        where_extra = "" if include_deleted else "AND p.status <> 'deleted'"
+        return list(
+            self.conn.execute(
+                f"""
+                SELECT p.*, s.name AS series_name, s.slug AS series_slug
+                FROM projects p
+                LEFT JOIN series s ON s.id = p.series_id
+                WHERE p.series_id = ? {where_extra}
+                ORDER BY
+                  CASE WHEN p.volume_no IS NULL THEN 1 ELSE 0 END ASC,
+                  p.volume_no ASC,
+                  p.updated_at DESC,
+                  p.id DESC
+                """,
+                (sid,),
+            )
+        )
 
     def update_series(
         self,

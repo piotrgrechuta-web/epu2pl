@@ -7,12 +7,19 @@ Desktopowy zestaw narzedzi do tlumaczenia i redakcji plikow EPUB z AI.
 KEYWORDS: `tlumacz EPUB`, `narzedzie do tlumaczenia EPUB`, `tlumaczenie AI`, `tlumacz ebookow`, `Ollama`, `Google Gemini`, `Translation Memory`, `QA gate`, `Tkinter`, `Python`.
 
 
-## Co to robi
+## Unikalne cechy (rzadko spotykane w narzedziach EPUB)
+- idempotentny pipeline z ledgerem segmentow (`done/processing/error/pending`) i bezpiecznym resume po awarii
+- zarzadzane migracje bazy z backupem i rollbackiem (`migration_runs`, startup notice, panel DB Update)
+- security-first gate'y runtime (twardy EPUBCheck + QA severity gate)
+- Smart Context (segmenty sasiednie) dla lepszej spojnosci form i odniesien
+- Series Memory: termy serii, style rules, lorebook, historia zmian, import/export profilu serii
+- orkiestracja batcha serii jednym kliknieciem + raport zbiorczy (`series_batch_report_*.json/.md`)
+
+## Cechy standardowe projektu (jak w dobrych narzedziach klasy pro)
 - tlumaczenie EPUB (`translate`) i redakcja (`edit`)
 - walidacja EPUB
 - Translation Memory (TM) i cache segmentow
-- staly mini-dashboard ledgera w sekcji `Uruchomienie` (`done/processing/error/pending`)
-- presety promptow w GUI pod provider/model (Gemini: `Book Balanced`, `Lovecraft Tone`, `Technical Manual`, `Polish Copyedit`)
+- presety promptow w GUI pod provider/model
 - workflow findings QA i QA gate
 - operacje EPUB: wizytowka, usuwanie okladki/grafik, edytor segmentow
 - praca kolejka projektow (`pending`, `run all`)
@@ -82,6 +89,7 @@ export GOOGLE_API_KEY="<TWOJ_KLUCZ>"
 - kanoniczny translator: `project-tkinter/translation_engine.py`
 - oba warianty UI (`classic`, `horizon`) korzystaja z tej samej logiki runtime
 - katalog presetow promptow: `project-tkinter/prompt_presets.json`
+- warstwa abstrakcji state-store (krok Repository): `project-tkinter/studio_repository.py`
 
 ## Dokumentacja
 - manual uzytkownika Tkinter (PL): `project-tkinter/MANUAL_PL.md`

@@ -184,3 +184,136 @@ def test_project_db_series_update_and_delete_detaches_projects(tmp_path: Path) -
     assert updated_project["series_id"] is None
     assert updated_project["volume_no"] is None
     db.close()
+
+
+def test_series_store_style_lore_change_log_and_augmented_prompt(tmp_path: Path) -> None:
+    store = SeriesStore(tmp_path / "series")
+    store.ensure_series_db("saga-a", display_name="Saga A")
+
+    rule_id, created = store.upsert_style_rule(
+        "saga-a",
+        rule_key="tone.formality",
+        value={"instruction": "Use neutral, modern narration."},
+    )
+    assert created is True
+    assert rule_id > 0
+
+    _, created2 = store.upsert_style_rule(
+        "saga-a",
+        rule_key="tone.formality",
+        value={"instruction": "Use warm and direct narration."},
+    )
+    assert created2 is False
+
+    lore_id, lore_created = store.upsert_lore_entry(
+        "saga-a",
+        entry_key="hero-origin",
+        title="Hero Origin",
+        content="Arin comes from the northern city-state.",
+        tags=["character", "origin"],
+        status="active",
+    )
+    assert lore_created is True
+    assert lore_id > 0
+    store.set_lore_status("saga-a", lore_id, "active")
+
+    logs = store.list_change_log("saga-a", limit=100)
+    assert any(str(r["entity_type"]) == "style_rule" for r in logs)
+    assert any(str(r["entity_type"]) == "lore" for r in logs)
+
+    context_block = store.build_series_context_block("saga-a")
+    assert "tone.formality" in context_block
+    assert "Hero Origin" in context_block
+
+    base_prompt = tmp_path / "prompt.txt"
+    base_prompt.write_text("Translate faithfully.", encoding="utf-8")
+    out_prompt = tmp_path / "prompt_augmented.txt"
+    built = store.build_augmented_prompt(
+        "saga-a",
+        base_prompt_path=base_prompt,
+        output_path=out_prompt,
+        run_step="translate",
+    )
+    assert built.exists()
+    merged = built.read_text(encoding="utf-8")
+    assert "Translate faithfully." in merged
+    assert "SERIES MEMORY CONTEXT" in merged
+    assert "Hero Origin" in merged
+
+
+def test_series_profile_export_import_roundtrip(tmp_path: Path) -> None:
+    src_store = SeriesStore(tmp_path / "src_series")
+    src_store.ensure_series_db("alpha", display_name="Alpha")
+    src_store.add_or_update_term(
+        "alpha",
+        source_term="Void Gate",
+        target_term="Brama Pustki",
+        status="approved",
+        confidence=1.0,
+        origin="manual",
+    )
+    src_store.upsert_style_rule(
+        "alpha",
+        rule_key="dialog.quotes",
+        value={"instruction": "Use Polish quotes style with em dash in dialogues."},
+    )
+    src_store.upsert_lore_entry(
+        "alpha",
+        entry_key="world-magic",
+        title="World Magic",
+        content="Magic relies on crystal resonance.",
+        tags=["world", "magic"],
+        status="active",
+    )
+    exported = src_store.export_series_profile("alpha")
+    assert exported.exists()
+
+    dst_store = SeriesStore(tmp_path / "dst_series")
+    dst_store.ensure_series_db("beta", display_name="Beta")
+    stats = dst_store.import_series_profile("beta", exported)
+    assert int(stats["style_added"]) >= 1
+    assert int(stats["lore_added"]) >= 1
+    assert int(stats["terms_added"]) >= 1
+    assert any(str(r["rule_key"]) == "dialog.quotes" for r in dst_store.list_style_rules("beta"))
+    assert any(str(r["entry_key"]) == "world-magic" for r in dst_store.list_lore_entries("beta"))
+    assert ("Void Gate", "Brama Pustki") in dst_store.list_approved_terms("beta")
+
+
+def test_project_db_list_projects_for_series_sorted_by_volume(tmp_path: Path) -> None:
+    db = ProjectDB(tmp_path / "studio.db")
+    sid = db.ensure_series("Saga Sort", source="manual")
+    db.create_project(
+        "Tom 2",
+        {
+            "series_id": sid,
+            "volume_no": 2.0,
+            "input_epub": str(tmp_path / "b2.epub"),
+            "output_translate_epub": str(tmp_path / "b2_pl.epub"),
+            "output_edit_epub": str(tmp_path / "b2_pl_edit.epub"),
+        },
+    )
+    db.create_project(
+        "Tom 1",
+        {
+            "series_id": sid,
+            "volume_no": 1.0,
+            "input_epub": str(tmp_path / "b1.epub"),
+            "output_translate_epub": str(tmp_path / "b1_pl.epub"),
+            "output_edit_epub": str(tmp_path / "b1_pl_edit.epub"),
+        },
+    )
+    db.create_project(
+        "Tom ?",
+        {
+            "series_id": sid,
+            "volume_no": None,
+            "input_epub": str(tmp_path / "bx.epub"),
+            "output_translate_epub": str(tmp_path / "bx_pl.epub"),
+            "output_edit_epub": str(tmp_path / "bx_pl_edit.epub"),
+        },
+    )
+    rows = db.list_projects_for_series(sid)
+    names = [str(r["name"]) for r in rows]
+    assert names[:2] == ["Tom 1", "Tom 2"]
+    assert names[-1] == "Tom ?"
+    db.close()
