@@ -25,6 +25,7 @@ from text_preserve import set_text_preserving_inline
 
 
 EN_HINTS = {"the", "and", "of", "to", "in", "for", "with", "that", "this", "is", "are"}
+EPUBCHECK_TIMEOUT_S = 120
 
 
 def _txt(el: etree._Element) -> str:
@@ -59,6 +60,23 @@ def _qa_scan_iter(epub: Path, segment_mode: str = "auto") -> Iterator[Dict[str, 
                     "rule_code": "EN_LEAK",
                     "message": "EN leak",
                 }
+
+
+def _safe_extract_zip(zf: zipfile.ZipFile, dest_dir: Path) -> None:
+    root = Path(dest_dir).resolve()
+    for info in zf.infolist():
+        name = str(info.filename or "").replace("\\", "/")
+        if not name:
+            continue
+        member_path = Path(name)
+        if member_path.is_absolute() or re.match(r"^[a-zA-Z]:", name):
+            raise ValueError(f"Unsafe zip entry path: {name}")
+        target = (root / member_path).resolve()
+        try:
+            target.relative_to(root)
+        except Exception:
+            raise ValueError(f"Unsafe zip entry path: {name}")
+    zf.extractall(root)
 
 
 class StudioSuiteWindow:
@@ -735,9 +753,12 @@ class StudioSuiteWindow:
             title=self.gui.tr("studio.title.restore", "Restore"),
         ):
             return
-        with zipfile.ZipFile(p, "r") as z:
-            z.extractall(self.gui.workdir)
-        self._msg_info(self.gui.tr("studio.info.restored", "Restored."), title=self.gui.tr("mb.ok", "OK"))
+        try:
+            with zipfile.ZipFile(p, "r") as z:
+                _safe_extract_zip(z, self.gui.workdir)
+            self._msg_info(self.gui.tr("studio.info.restored", "Restored."), title=self.gui.tr("mb.ok", "OK"))
+        except Exception as e:
+            self._msg_error(f"Restore blocked: {e}", title=self.gui.tr("studio.title.restore", "Restore"))
 
     def _build_check_tab(self, nb: ttk.Notebook) -> None:
         tab = ttk.Frame(nb, padding=8); nb.add(tab, text=self.gui.tr("studio.tab.epubcheck", "EPUBCheck"))
@@ -752,8 +773,17 @@ class StudioSuiteWindow:
         if not e:
             return
         try:
-            p = subprocess.run(["epubcheck", e], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            p = subprocess.run(
+                ["epubcheck", e],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=EPUBCHECK_TIMEOUT_S,
+            )
             out = (p.stdout or "") + "\n" + (p.stderr or "")
+        except subprocess.TimeoutExpired:
+            out = f"epubcheck timed out after {EPUBCHECK_TIMEOUT_S}s"
         except Exception as ex:
             out = f"epubcheck unavailable: {ex}"
         self.chk_log.delete("1.0", "end"); self.chk_log.insert("1.0", out)

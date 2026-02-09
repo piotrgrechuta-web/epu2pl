@@ -38,6 +38,10 @@ All notable changes to this project are documented in this file.
   - model-specific prompt presets in GUI with one-click apply (`Gemini` presets),
   - new prompt preset catalog files: `project-tkinter/prompt_presets.py`, `project-tkinter/prompt_presets.json`,
   - unit tests for preset loading/filtering: `project-tkinter/tests/test_prompt_presets.py`.
+- Security/reliability hardening tests:
+  - `project-tkinter/tests/test_security_reliability_hardening.py`,
+  - snapshot restore path traversal guard (`Zip Slip`) regression test,
+  - interrupted-run startup recovery regression test.
 
 ### Changed
 - Naming cleanup (repo alignment):
@@ -67,7 +71,14 @@ All notable changes to this project are documented in this file.
 - `project-tkinter/app_gui_classic.py`:
   - EPUBCheck gate now parses `FATAL/ERROR/WARNING` findings and blocks finalization on any `FATAL/ERROR`,
   - added QA severity gate (`fatal/error`) before final run success,
-  - Text Editor now uses immutable inline-tag tokens (`[[TAG001]]`) and blocks destructive edits inside tag tokens.
+  - Text Editor now uses immutable inline-tag tokens (`[[TAG001]]`) and blocks destructive edits inside tag tokens,
+  - `epubcheck` gate now has explicit timeout fail-fast behavior,
+  - QA severity gate is now independent from EPUBCheck hard-gate toggle.
+- `project-tkinter/project_db.py`:
+  - startup runtime recovery for stale `running` states after abrupt app/process interruption
+    (runs finalized as `error`, projects moved back to `pending`).
+- `project-tkinter/studio_suite.py`:
+  - `epubcheck` in Studio Tools now has timeout fail-fast behavior.
 - `project-tkinter/studio_suite.py`:
   - dashboard now shows `segment_ledger` status breakdown (`PENDING/PROCESSING/COMPLETED/ERROR`) for active project/step,
   - dashboard reports latest-run provider split and estimated API token usage from ledger (`source_len` + translated length).
@@ -87,4 +98,5 @@ All notable changes to this project are documented in this file.
 - Classic text editor no longer flattens inline XHTML tags on save; segment updates preserve markup structure.
 
 ### Security
-- TODO
+- Snapshot restore in Studio Tools now blocks unsafe ZIP paths before extraction
+  (prevents path traversal / `Zip Slip` outside project directory).

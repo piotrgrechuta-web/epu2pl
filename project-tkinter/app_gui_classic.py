@@ -65,6 +65,7 @@ SERIES_DATA_DIR = Path(__file__).resolve().with_name("data").joinpath("series")
 PROMPT_PRESETS_FILE = Path(__file__).resolve().with_name("prompt_presets.json")
 GOOGLE_KEYRING_SERVICE = "epub-translator-studio"
 GOOGLE_KEYRING_USER = "google_api_key"
+EPUBCHECK_TIMEOUT_S = 120
 GLOBAL_PROGRESS_RE = re.compile(r"GLOBAL\s+(\d+)\s*/\s*(\d+)\s*\(([^)]*)\)\s*\|\s*(.*)")
 TOTAL_SEGMENTS_RE = re.compile(r"Segmenty\s+(?:Äąâ€šĂ„â€¦cznie|lacznie)\s*:\s*(\d+)", re.IGNORECASE)
 CACHE_SEGMENTS_RE = re.compile(r"Segmenty\s+z\s+cache\s*:\s*(\d+)", re.IGNORECASE)
@@ -174,7 +175,7 @@ class TranslatorGUI:
         self.workdir = Path(__file__).resolve().parent
         self.events_log_path = self.workdir / "events" / "app_events.jsonl"
         self.translator_path = self._find_translator()
-        self.db = ProjectDB(SQLITE_FILE)
+        self.db = ProjectDB(SQLITE_FILE, recover_runtime_state=True)
         self.series_store = SeriesStore(SERIES_DATA_DIR)
         ui_lang = str(self.db.get_setting("ui_language", "pl") or "pl").strip().lower()
         self.i18n = I18NManager(LOCALES_DIR, ui_lang)
@@ -3007,7 +3008,10 @@ class TranslatorGUI:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                timeout=EPUBCHECK_TIMEOUT_S,
             )
+        except subprocess.TimeoutExpired:
+            return False, f"[EPUBCHECK-GATE] FAIL: epubcheck timed out after {EPUBCHECK_TIMEOUT_S}s"
         except Exception as e:
             return False, f"[EPUBCHECK-GATE] FAIL: epubcheck unavailable: {e}"
 
@@ -3335,12 +3339,7 @@ class TranslatorGUI:
                     if not gate_ok:
                         self.log_queue.put("\n=== EPUBCHECK GATE BLOCKED ===\n")
                         code = 86
-                if (
-                    code == 0
-                    and bool(self.hard_gate_epubcheck_var.get())
-                    and self.current_project_id is not None
-                    and runner_db is not None
-                ):
+                if code == 0 and self.current_project_id is not None and runner_db is not None:
                     qa_sev_ok, qa_sev_msg = runner_db.qa_severity_gate_status(
                         self.current_project_id,
                         run_step,

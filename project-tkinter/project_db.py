@@ -79,7 +79,7 @@ def _release_init_lock(fh) -> None:
 
 
 class ProjectDB:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, recover_runtime_state: bool = False) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._db_preexists = self.path.exists()
@@ -93,11 +93,51 @@ class ProjectDB:
             self._init_schema()
             self._run_migrations()
             self._ensure_default_profiles()
+            if recover_runtime_state:
+                self.recover_interrupted_runtime_state()
         finally:
             _release_init_lock(lock_fh)
 
     def close(self) -> None:
         self.conn.close()
+
+    def recover_interrupted_runtime_state(self) -> int:
+        """Recover stale runtime rows left after hard app/process interruption."""
+        now = _now_ts()
+        interrupted_note = "interrupted recovery on startup"
+        runs_cur = self.conn.execute(
+            """
+            UPDATE runs
+            SET status = 'error',
+                message = CASE
+                    WHEN trim(message) = '' THEN ?
+                    WHEN instr(message, ?) > 0 THEN message
+                    ELSE message || ' | ' || ?
+                END,
+                finished_at = COALESCE(finished_at, ?)
+            WHERE status = 'running'
+            """,
+            (interrupted_note, interrupted_note, interrupted_note, now),
+        )
+        projects_cur = self.conn.execute(
+            """
+            UPDATE projects
+            SET status = 'pending',
+                updated_at = ?
+            WHERE status = 'running'
+            """,
+            (now,),
+        )
+        self.conn.commit()
+        runs_changed = int(runs_cur.rowcount or 0)
+        projects_changed = int(projects_cur.rowcount or 0)
+        if runs_changed or projects_changed:
+            LOG.info(
+                "Recovered interrupted runtime state: runs=%s, projects=%s",
+                runs_changed,
+                projects_changed,
+            )
+        return runs_changed + projects_changed
 
     def _init_schema(self) -> None:
         cur = self.conn.cursor()
