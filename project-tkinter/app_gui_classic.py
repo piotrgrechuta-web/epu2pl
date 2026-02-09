@@ -4069,53 +4069,58 @@ class TranslatorGUI:
             pass
         self.root.after(80, self._poll_log_queue)
 
+    @staticmethod
+    def _empty_ledger_counts() -> Dict[str, int]:
+        return {"PENDING": 0, "PROCESSING": 0, "COMPLETED": 0, "ERROR": 0}
+
+    @staticmethod
+    def _segment_ledger_table_exists(con: sqlite3.Connection) -> bool:
+        return con.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'segment_ledger'"
+        ).fetchone() is not None
+
+    @staticmethod
+    def _fill_ledger_counts(con: sqlite3.Connection, project_id: int, step: str, counts: Dict[str, int]) -> None:
+        rows = con.execute(
+            """
+            SELECT status, COUNT(*) c
+            FROM segment_ledger
+            WHERE project_id = ? AND run_step = ?
+            GROUP BY status
+            """,
+            (int(project_id), str(step or "translate")),
+        ).fetchall()
+        for row in rows:
+            st = str(row["status"] or "").strip().upper()
+            if st in counts:
+                counts[st] = int(row["c"] or 0)
+
     def _ledger_counts_for_scope(self, project_id: Optional[int], step: str) -> Tuple[bool, Dict[str, int]]:
-        counts = {"PENDING": 0, "PROCESSING": 0, "COMPLETED": 0, "ERROR": 0}
+        counts = self._empty_ledger_counts()
         if project_id is None:
             return True, counts
         con = sqlite3.connect(str(SQLITE_FILE), timeout=1.0)
         con.row_factory = sqlite3.Row
         try:
-            exists = con.execute(
-                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'segment_ledger'"
-            ).fetchone() is not None
-            if not exists:
+            if not self._segment_ledger_table_exists(con):
                 return False, counts
-            rows = con.execute(
-                """
-                SELECT status, COUNT(*) c
-                FROM segment_ledger
-                WHERE project_id = ? AND run_step = ?
-                GROUP BY status
-                """,
-                (int(project_id), str(step or "translate")),
-            ).fetchall()
-            for row in rows:
-                st = str(row["status"] or "").strip().upper()
-                if st in counts:
-                    counts[st] = int(row["c"] or 0)
+            self._fill_ledger_counts(con, int(project_id), step, counts)
             return True, counts
         finally:
             con.close()
 
-    def _draw_ledger_bar(self) -> None:
-        if not hasattr(self, "ledger_canvas"):
-            return
-        canvas = self.ledger_canvas
-        width = max(1, int(canvas.winfo_width() or 1))
-        height = max(1, int(canvas.winfo_height() or int(canvas.cget("height") or 10)))
-        canvas.delete("all")
-        total = max(0, sum(int(v or 0) for v in self._ledger_counts.values()))
+    @staticmethod
+    def _draw_empty_ledger_bar(canvas: tk.Canvas, width: int, height: int) -> None:
+        canvas.create_rectangle(0, 0, width, height, fill="#cbd5e1", outline="")
+        canvas.create_rectangle(0, 0, width - 1, height - 1, outline="#64748b")
+
+    def _draw_filled_ledger_bar(self, canvas: tk.Canvas, width: int, height: int, total: int) -> None:
         colors = {
             "COMPLETED": "#16a34a",
             "PROCESSING": "#f59e0b",
             "ERROR": "#dc2626",
             "PENDING": "#94a3b8",
         }
-        if total <= 0:
-            canvas.create_rectangle(0, 0, width, height, fill="#cbd5e1", outline="")
-            canvas.create_rectangle(0, 0, width - 1, height - 1, outline="#64748b")
-            return
         order = ["COMPLETED", "PROCESSING", "ERROR", "PENDING"]
         x = 0.0
         for idx, status in enumerate(order):
@@ -4130,6 +4135,19 @@ class TranslatorGUI:
                 canvas.create_rectangle(int(x), 0, int(round(x2)), height, fill=colors[status], outline="")
             x = x2
         canvas.create_rectangle(0, 0, width - 1, height - 1, outline="#64748b")
+
+    def _draw_ledger_bar(self) -> None:
+        if not hasattr(self, "ledger_canvas"):
+            return
+        canvas = self.ledger_canvas
+        width = max(1, int(canvas.winfo_width() or 1))
+        height = max(1, int(canvas.winfo_height() or int(canvas.cget("height") or 10)))
+        canvas.delete("all")
+        total = max(0, sum(int(v or 0) for v in self._ledger_counts.values()))
+        if total <= 0:
+            self._draw_empty_ledger_bar(canvas, width, height)
+            return
+        self._draw_filled_ledger_bar(canvas, width, height, total)
 
     def _ledger_summary_text(self, counts: Dict[str, int], total: int) -> str:
         return self.tr(
@@ -4165,7 +4183,7 @@ class TranslatorGUI:
         try:
             available, counts = self._ledger_counts_for_scope(project_id, step)
         except Exception:
-            available, counts = True, {"PENDING": 0, "PROCESSING": 0, "COMPLETED": 0, "ERROR": 0}
+            available, counts = True, self._empty_ledger_counts()
         self._ledger_counts = counts
         total = sum(counts.values())
         if project_id is None:
