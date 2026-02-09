@@ -11,6 +11,7 @@ Status:
 - Increment Async I/O: zrealizowany etap preflight providerow/pluginow (asynchroniczne health-checki i telemetryka), bez zmiany deterministycznego pipeline translacji.
 - Milestone `M3-M7` i ich issue sa domkniete na GitHub.
 - Aktywny jest milestone `M8` (issue: `#45-#49`).
+- Zaplanowany jest milestone `M9` (issue: `#50-#54`).
 
 ## Cel
 
@@ -19,6 +20,7 @@ Zamienic roadmape na konkretne, mierzalne zadania z jasnym zakresem i kryteriami
 ## Aktywne milestone'y
 
 1. `M8: Async Runtime + Release Automation`
+2. `M9: Literary Consistency + Assistive QA + MCP`
 
 ## M8: Async Runtime + Release Automation
 
@@ -71,6 +73,60 @@ Status M8: `aktywny`.
   - mozna dodac nowy profil jezykowy bez zmiany kodu,
   - profile sa walidowane i trwale,
   - testy custom guardow przechodza.
+
+## M9: Literary Consistency + Assistive QA + MCP
+
+Status M9: `planowany` (start po stabilizacji M8).
+
+### Issue #50: Global Entity Glossary (slownik bytow i nazw wlasnych)
+- Zakres:
+  - nowa tabela SQLite dla encji (`entity_glossary`) z polami: `term_source`, `term_target`, `entity_type`, `lang_source`, `lang_target`, `notes`, `updated_at`,
+  - lookup encji przed translacja segmentu + wstrzykniecie constraints do promptu,
+  - walidator post-run: wykrywanie niespojnych wariantow nazw.
+- Done:
+  - encje sa stosowane deterministycznie w runtime i widoczne w UI,
+  - raport pokazuje naruszenia spojnosci (co najmniej: chapter, segment_id, warianty),
+  - testy repository/runtime/GUI dla lookup i walidacji przechodza.
+
+### Issue #51: Confidence + Risk Scoring (flagowanie trudnych segmentow)
+- Zakres:
+  - rozszerzenie ledgera o `confidence_score` i `ai_notes`,
+  - composite risk score (self-score modelu + retry/timeout + language-guard + semantic gate + entity-mismatch),
+  - oznaczanie segmentow `orange/red` oraz filtr "pokaz tylko ryzykowne".
+- Done:
+  - segmenty z ryzykiem > progu sa automatycznie flagowane i filtrowalne w GUI,
+  - score jest trwale zapisany i widoczny w eksporcie runu,
+  - progi i skladniki score sa konfigurowalne oraz przetestowane.
+
+### Issue #52: Dynamic Token Balancing (batch manager)
+- Zakres:
+  - manager laczenia bardzo krotkich segmentow i izolowania dlugich,
+  - provider-aware limity tokenow/znakow + fallback na tryb bezpieczny,
+  - zachowanie stabilnego mapowania `segment_id -> wynik` i idempotencji ledgera.
+- Done:
+  - benchmark pokazuje krotszy czas i/lub mniejszy koszt na corpusie dialogowym,
+  - brak regresji jakosci i brak duplikatow/utraty segmentow,
+  - testy regresji mapowania batch->segment przechodza.
+
+### Issue #53: MCP Gateway Read-Only (kontekst dla zewnetrznych modeli)
+- Zakres:
+  - endpointy MCP read-only: projekty, ledger, findings, metryki, glossary, health,
+  - kontrakt narzedzi MCP + dokumentacja scenariuszy "assistant over project state",
+  - minimalny model uprawnien (scope per projekt).
+- Done:
+  - klient MCP potrafi pobrac stan projektu i zlozyc raport bez zapisu do DB,
+  - audyt zapytan MCP jest logowany,
+  - testy integracyjne MCP read-only przechodza.
+
+### Issue #54: MCP Write Actions + Audit Gate (bezpieczne operacje zapisu)
+- Zakres:
+  - kontrolowane akcje zapisu przez MCP (np. dodanie wpisu glossary, update statusu finding),
+  - policy gate + potwierdzenia dla operacji mutujacych,
+  - rozszerzony audit trail (`who/when/what/before/after`).
+- Done:
+  - wszystkie write actions przechodza przez gate i sa audytowane,
+  - mozliwy rollback logiczny dla krytycznych zmian,
+  - brak nieautoryzowanych zapisow w testach negatywnych.
 
 ## M1: UI Consistency + UX Telemetry
 
@@ -324,6 +380,11 @@ Status:
 3. `M8#48` (telemetria historii health-check) po bazowym async.
 4. `M8#47` (release automation) po ustabilizowaniu danych metryk.
 5. `M8#49` (custom language guards) jako increment UX/runtime.
+6. `M9#50` (Global Entity Glossary) jako pierwszy krok jakosci literackiej.
+7. `M9#52` (Dynamic Token Balancing) rownolegle z #50 po stabilizacji kontraktow.
+8. `M9#51` (Confidence/Risk scoring) po wdrozeniu #50 i #52.
+9. `M9#53` (MCP read-only) po ustabilizowaniu danych i score.
+10. `M9#54` (MCP write + audit gate) na koniec, po twardym modelu uprawnien.
 
 ## Definicja publikacji milestone
 

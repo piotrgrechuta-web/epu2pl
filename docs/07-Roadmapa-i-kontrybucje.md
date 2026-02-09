@@ -12,6 +12,7 @@
 - Increment Async I/O: wdrozony bezpieczny etap preflight (`Health check I/O` providerow + `Health check all (async)` pluginow), pelny async dispatch translacji pozostaje kolejnym krokiem.
 - `M3-M7`: issue i milestone na GitHub domkniete (cleanup statusow wykonany).
 - `M8`: uruchomione (otwarte issue: `#45`, `#46`, `#47`, `#48`, `#49`).
+- `M9`: zaplanowane (issue: `#50`, `#51`, `#52`, `#53`, `#54`).
 
 ## 7.1. Priorytety techniczne
 
@@ -84,6 +85,11 @@ Jesli projekt oszczedza czas:
 3. `M8#47`: automatyzacja release notes (CHANGELOG + metryki runtime).
 4. `M8#48`: telemetryczny health-check z historia i trendami.
 5. `M8#49`: konfigurowalne language guards dla dowolnego jezyka docelowego.
+6. `M9#50`: Global Entity Glossary (spojnosc nazw w calym woluminie i serii).
+7. `M9#51`: Confidence + Risk Scoring (flagowanie segmentow do recenzji).
+8. `M9#52`: Dynamic Token Balancing (lepszy koszt/czas dla dialogow i miksu segmentow).
+9. `M9#53`: MCP Gateway read-only (kontekst projektu dla zewnetrznych modeli/agentow).
+10. `M9#54`: MCP write actions + audit gate (bezpieczna automatyzacja operacji zapisu).
 
 Zakres i kryteria `Done` sa utrzymywane w:
 - `docs/09-Backlog-do-uzgodnienia.md`
