@@ -4334,6 +4334,16 @@ class TranslatorGUI:
         if runner_db:
             runner_db.log_audit_event("run_finish", {"project_id": self.current_project_id, "status": "exception"})
 
+    def _schedule_post_run_refresh(self) -> None:
+        self.root.after(0, self._refresh_projects)
+        self.root.after(0, self._refresh_run_history)
+        self.root.after(0, self._refresh_ledger_status)
+
+    def _restore_idle_buttons(self) -> None:
+        self.root.after(0, lambda: self.start_btn.configure(state="normal"))
+        self.root.after(0, lambda: self.validate_btn.configure(state="normal"))
+        self.root.after(0, lambda: self.stop_btn.configure(state="disabled"))
+
     def _finalize_run_thread(self, runner_db: Optional[ProjectDB]) -> None:
         if runner_db is not None:
             runner_db.close()
@@ -4341,12 +4351,8 @@ class TranslatorGUI:
         self.proc = None
         self.run_started_at = None
         self.last_log_at = None
-        self.root.after(0, self._refresh_projects)
-        self.root.after(0, self._refresh_run_history)
-        self.root.after(0, self._refresh_ledger_status)
-        self.root.after(0, lambda: self.start_btn.configure(state="normal"))
-        self.root.after(0, lambda: self.validate_btn.configure(state="normal"))
-        self.root.after(0, lambda: self.stop_btn.configure(state="disabled"))
+        self._schedule_post_run_refresh()
+        self._restore_idle_buttons()
         if self.run_all_active:
             self.root.after(200, self._continue_run_all)
         elif self.series_batch_context is not None and bool(self.series_batch_context.get("stopped")):
@@ -4480,12 +4486,8 @@ class TranslatorGUI:
         self.proc = None
         self.run_started_at = None
         self.last_log_at = None
-        self.root.after(0, self._refresh_projects)
-        self.root.after(0, self._refresh_run_history)
-        self.root.after(0, self._refresh_ledger_status)
-        self.root.after(0, lambda: self.start_btn.configure(state="normal"))
-        self.root.after(0, lambda: self.validate_btn.configure(state="normal"))
-        self.root.after(0, lambda: self.stop_btn.configure(state="disabled"))
+        self._schedule_post_run_refresh()
+        self._restore_idle_buttons()
 
     def _resolve_validation_target(self) -> Optional[Path]:
         out_file = Path(self.output_epub_var.get().strip()) if self.output_epub_var.get().strip() else None
