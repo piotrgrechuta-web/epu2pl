@@ -27,6 +27,7 @@ from translation_engine import (  # noqa: E402
     load_language_guard_profiles,
     looks_like_target_language,
     build_context_hints,
+    normalize_quotes_and_apostrophes_inner_xml,
 )
 
 
@@ -347,6 +348,68 @@ def test_language_guard_profiles_support_custom_language(tmp_path: Path) -> None
         )
         is False
     )
+
+
+def test_quote_normalization_polish_nested_and_apostrophes() -> None:
+    src = "\"To jest \"cytat <i>w srodku</i>\" i O'Connor.\""
+    out = normalize_quotes_and_apostrophes_inner_xml(src, target_lang="pl")
+    assert out.text == "\u201eTo jest \u00abcytat <i>w srodku</i>\u00bb i O\u2019Connor.\u201d"
+    assert out.replacements >= 4
+    assert out.quote_replacements >= 3
+    assert out.apostrophe_replacements >= 1
+
+
+def test_quote_normalization_english_uses_curly_quotes() -> None:
+    src = "\"He said 'it's fine'.\""
+    out = normalize_quotes_and_apostrophes_inner_xml(src, target_lang="en")
+    assert out.text == "\u201cHe said \u2018it\u2019s fine\u2019.\u201d"
+
+
+def test_translate_epub_reports_quote_normalization(tmp_path: Path, capsys) -> None:
+    class FakeQuoteLLM:
+        def resolve_model(self) -> str:
+            return "fake-model"
+
+        def generate(self, prompt: str, model: str) -> str:
+            _ = model
+            chunks = re.findall(r"(<batch\b[\s\S]*?</batch>)", prompt, flags=re.IGNORECASE)
+            assert chunks
+            parser = etree.XMLParser(recover=True, huge_tree=True)
+            root = etree.fromstring(chunks[-1].encode("utf-8"), parser=parser)
+            seg_items = []
+            for seg in root.findall(".//{*}seg"):
+                sid = str(seg.get("id") or "").strip()
+                assert sid
+                seg_items.append((sid, "\"To jest \"cytat <i>w srodku</i>\" i O'Connor.\""))
+            return build_batch_payload(seg_items)
+
+    inp = _make_entity_epub(tmp_path, chapter_text="Alpha", name="q_in.epub")
+    outp = tmp_path / "q_out.epub"
+    cache_path = tmp_path / "q_cache.jsonl"
+    llm = FakeQuoteLLM()
+    translate_epub(
+        input_epub=inp,
+        output_epub=outp,
+        base_prompt="Translate faithfully.",
+        llm=llm,
+        provider="google",
+        cache_path=cache_path,
+        block_tags=("p",),
+        batch_max_chars=200,
+        batch_max_segs=1,
+        sleep_s=0.0,
+        polish_guard=False,
+        semantic_gate_enabled=False,
+    )
+
+    with zipfile.ZipFile(outp, "r") as zf:
+        text = zf.read("OPS/Text/ch1.xhtml").decode("utf-8", errors="replace")
+    assert "\u201eTo jest \u00abcytat <i>w srodku</i>\u00bb i O\u2019Connor.\u201d" in text
+
+    captured = capsys.readouterr()
+    assert "[QUOTE-NORM]" in captured.out
+    assert "segments_changed=" in captured.out
+    assert "apostrophes=" in captured.out
 
 
 def test_build_run_command_includes_run_step() -> None:

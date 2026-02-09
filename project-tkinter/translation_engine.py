@@ -663,6 +663,218 @@ def replace_inner_xml(el: etree._Element, new_inner: str) -> None:
         el.append(c)
 
 
+@dataclass
+class QuoteNormalizationResult:
+    text: str
+    replacements: int = 0
+    quote_replacements: int = 0
+    apostrophe_replacements: int = 0
+
+
+@dataclass
+class QuoteNormalizationStats:
+    segments_changed: int = 0
+    replacements: int = 0
+    quote_replacements: int = 0
+    apostrophe_replacements: int = 0
+
+    def absorb(self, *, before: str, result: QuoteNormalizationResult) -> None:
+        if result.text != str(before or ""):
+            self.segments_changed += 1
+        self.replacements += max(0, int(result.replacements))
+        self.quote_replacements += max(0, int(result.quote_replacements))
+        self.apostrophe_replacements += max(0, int(result.apostrophe_replacements))
+
+
+_QUOTE_DOUBLE_CHARS: Set[str] = {
+    '"',
+    "\u201c",
+    "\u201d",
+    "\u201e",
+    "\u201f",
+    "\u00ab",
+    "\u00bb",
+    "\u2039",
+    "\u203a",
+    "\u275d",
+    "\u275e",
+    "\u301d",
+    "\u301e",
+    "\uff02",
+}
+_QUOTE_SINGLE_CHARS: Set[str] = {
+    "'",
+    "\u2018",
+    "\u2019",
+    "\u201a",
+    "\u201b",
+    "`",
+    "\u00b4",
+    "\u02bc",
+    "\u02bb",
+    "\u02b9",
+    "\u02bd",
+}
+_QUOTE_OPEN_HINT_CHARS: Set[str] = set("([{-\u2013\u2014/:")
+_QUOTE_CLOSE_HINT_CHARS: Set[str] = set(".,!?;:)]}>\u2026")
+
+
+def _quote_profile_for_lang(lang: str) -> Tuple[List[Tuple[str, str]], str]:
+    key = str(lang or "").strip().lower()
+    profiles: Dict[str, Tuple[List[Tuple[str, str]], str]] = {
+        "pl": (
+            [("\u201e", "\u201d"), ("\u00ab", "\u00bb"), ("\u201a", "\u2019")],
+            "\u2019",
+        ),
+        "en": (
+            [("\u201c", "\u201d"), ("\u2018", "\u2019")],
+            "\u2019",
+        ),
+        "de": (
+            [("\u201e", "\u201c"), ("\u201a", "\u2018")],
+            "\u2019",
+        ),
+        "fr": (
+            [("\u00ab", "\u00bb"), ("\u2039", "\u203a"), ("\u201c", "\u201d")],
+            "\u2019",
+        ),
+        "es": (
+            [("\u00ab", "\u00bb"), ("\u201c", "\u201d"), ("\u2018", "\u2019")],
+            "\u2019",
+        ),
+        "pt": (
+            [("\u00ab", "\u00bb"), ("\u201c", "\u201d"), ("\u2018", "\u2019")],
+            "\u2019",
+        ),
+        "ro": (
+            [("\u201e", "\u201d"), ("\u00ab", "\u00bb"), ("\u2018", "\u2019")],
+            "\u2019",
+        ),
+    }
+    return profiles.get(key, profiles["en"])
+
+
+def normalize_quotes_and_apostrophes_inner_xml(
+    inner_xml_text: str,
+    *,
+    target_lang: str,
+) -> QuoteNormalizationResult:
+    src = str(inner_xml_text or "")
+    if not src:
+        return QuoteNormalizationResult(text=src)
+
+    pairs, apostrophe_char = _quote_profile_for_lang(target_lang)
+    n = len(src)
+    in_tag = [False] * n
+    inside_tag = False
+    for i, ch in enumerate(src):
+        if inside_tag:
+            in_tag[i] = True
+            if ch == ">":
+                inside_tag = False
+            continue
+        if ch == "<":
+            in_tag[i] = True
+            inside_tag = True
+
+    normalized_chars: List[str] = list(src)
+    for i, ch in enumerate(normalized_chars):
+        if in_tag[i]:
+            continue
+        if ch in _QUOTE_DOUBLE_CHARS:
+            normalized_chars[i] = '"'
+        elif ch in _QUOTE_SINGLE_CHARS:
+            normalized_chars[i] = "'"
+
+    def _prev_char(idx: int, *, skip_ws: bool) -> Optional[str]:
+        j = idx - 1
+        while j >= 0:
+            if in_tag[j]:
+                j -= 1
+                continue
+            c = normalized_chars[j]
+            if skip_ws and c.isspace():
+                j -= 1
+                continue
+            return c
+        return None
+
+    def _next_char(idx: int, *, skip_ws: bool) -> Optional[str]:
+        j = idx + 1
+        while j < n:
+            if in_tag[j]:
+                j += 1
+                continue
+            c = normalized_chars[j]
+            if skip_ws and c.isspace():
+                j += 1
+                continue
+            return c
+        return None
+
+    out: List[str] = []
+    close_stack: List[str] = []
+    replacements = 0
+    quote_replacements = 0
+    apostrophe_replacements = 0
+
+    for i, orig in enumerate(src):
+        if in_tag[i]:
+            out.append(orig)
+            continue
+
+        c = normalized_chars[i]
+        if c not in {'"', "'"}:
+            out.append(orig)
+            continue
+
+        prev_raw = _prev_char(i, skip_ws=False)
+        next_raw = _next_char(i, skip_ws=False)
+        if (
+            c == "'"
+            and prev_raw is not None
+            and next_raw is not None
+            and prev_raw.isalnum()
+            and next_raw.isalnum()
+        ):
+            repl = apostrophe_char
+            out.append(repl)
+            if repl != orig:
+                replacements += 1
+                apostrophe_replacements += 1
+            continue
+
+        open_hint = prev_raw is None or prev_raw.isspace() or prev_raw in _QUOTE_OPEN_HINT_CHARS
+        close_hint = next_raw is None or next_raw.isspace() or next_raw in _QUOTE_CLOSE_HINT_CHARS
+
+        if not close_stack:
+            should_open = True
+        elif open_hint and not close_hint:
+            should_open = True
+        else:
+            should_open = False
+
+        if should_open:
+            level = min(len(close_stack), len(pairs) - 1)
+            open_q, close_q = pairs[level]
+            close_stack.append(close_q)
+            repl = open_q
+        else:
+            repl = close_stack.pop() if close_stack else pairs[0][1]
+
+        out.append(repl)
+        if repl != orig:
+            replacements += 1
+            quote_replacements += 1
+
+    return QuoteNormalizationResult(
+        text="".join(out),
+        replacements=replacements,
+        quote_replacements=quote_replacements,
+        apostrophe_replacements=apostrophe_replacements,
+    )
+
+
 # ----------------------------
 # Prompt + parsing output (HYBRYDA)
 # ----------------------------
@@ -2317,6 +2529,7 @@ def translate_epub(
     semantic_gate_hard_threshold: float = 0.42,
     semantic_gate_min_chars: int = 24,
     io_concurrency: int = 1,
+    quote_normalization: bool = True,
 ) -> None:
     source_lang = (source_lang or "en").strip().lower()
     target_lang = (target_lang or "pl").strip().lower()
@@ -2339,6 +2552,8 @@ def translate_epub(
             f"provider={provider} io_concurrency={effective_io_concurrency} "
             f"dispatch_interval={max(0.0, float(sleep_s or 0.0)):g}s"
         )
+    if not quote_normalization:
+        print("[QUOTE-NORM] disabled")
     base_prompt = base_prompt.strip() + "\n\n" + build_language_instruction(source_lang, target_lang)
     model = llm.resolve_model()
     cache = load_cache(cache_path)
@@ -2390,6 +2605,7 @@ def translate_epub(
     global_retranslated = 0
     global_changed_retranslated = 0
     semantic_findings: List[Dict[str, Any]] = []
+    quote_stats = QuoteNormalizationStats()
 
     print("\n=== POSTÄP GLOBALNY (CAĹY EPUB) ===")
     print(f"  Segmenty Ĺ‚Ä…cznie:     {global_total}")
@@ -2414,6 +2630,16 @@ def translate_epub(
         if extra:
             msg += f" | {extra}"
         print(msg)
+
+    def _normalize_translated_inner(text: str) -> str:
+        if not quote_normalization:
+            return str(text or "")
+        result = normalize_quotes_and_apostrophes_inner_xml(
+            str(text or ""),
+            target_lang=target_lang,
+        )
+        quote_stats.absorb(before=str(text or ""), result=result)
+        return result.text
 
     with zipfile.ZipFile(working_input, "r") as zin:
         opf_path = find_opf_path(zin)
@@ -2487,13 +2713,21 @@ def translate_epub(
                         print(f"  [LANG-GUARD] Ignoruje cache (wyglada na EN): {sid}")
                         segs.append(Segment(idx=i, el=el, seg_id=sid, inner=seg_inner, plain=seg_plain))
                         continue
-                    replace_inner_xml(el, tr_cached_exact)
+                    tr_cached_exact_norm = _normalize_translated_inner(tr_cached_exact)
+                    replace_inner_xml(el, tr_cached_exact_norm)
                     chapter_cache += 1
                     global_reused += 1
                     if segment_ledger is not None:
                         if ledger_status != "COMPLETED":
                             global_done += 1
-                        segment_ledger.mark_completed(chapter_path, sid, seg_plain, tr_cached_exact, provider="cache", model=model)
+                        segment_ledger.mark_completed(
+                            chapter_path,
+                            sid,
+                            seg_plain,
+                            tr_cached_exact_norm,
+                            provider="cache",
+                            model=model,
+                        )
                 elif diff_aware and tr_cached_prefix is not None:
                     global_changed += 1
                     chapter_prev_map[sid] = tr_cached_prefix
@@ -2503,27 +2737,49 @@ def translate_epub(
                         print(f"  [LANG-GUARD] Ignoruje cache-prefix (wyglada na EN): {sid}")
                         segs.append(Segment(idx=i, el=el, seg_id=sid, inner=seg_inner, plain=seg_plain))
                         continue
-                    replace_inner_xml(el, tr_cached_prefix)
+                    tr_cached_prefix_norm = _normalize_translated_inner(tr_cached_prefix)
+                    replace_inner_xml(el, tr_cached_prefix_norm)
                     chapter_cache += 1
                     global_reused += 1
                     if segment_ledger is not None:
                         if ledger_status != "COMPLETED":
                             global_done += 1
-                        segment_ledger.mark_completed(chapter_path, sid, seg_plain, tr_cached_prefix, provider="cache", model=model)
+                        segment_ledger.mark_completed(
+                            chapter_path,
+                            sid,
+                            seg_plain,
+                            tr_cached_prefix_norm,
+                            provider="cache",
+                            model=model,
+                        )
                 elif ledger_done_inner is not None:
                     if polish_guard and not looks_like_target_language(ledger_done_inner, target_lang, profiles=guard_profiles):
                         segs.append(Segment(idx=i, el=el, seg_id=sid, inner=seg_inner, plain=seg_plain))
                         continue
-                    replace_inner_xml(el, ledger_done_inner)
-                    cache[sid] = ledger_done_inner
-                    cache.append(sid, ledger_done_inner)
+                    ledger_done_inner_norm = _normalize_translated_inner(ledger_done_inner)
+                    replace_inner_xml(el, ledger_done_inner_norm)
+                    cache[sid] = ledger_done_inner_norm
+                    cache.append(sid, ledger_done_inner_norm)
                     chapter_ledger += 1
                     global_ledger_reused += 1
                     global_reused += 1
                     if tm is not None:
-                        tm.add(seg_plain, ledger_done_inner, score=1.0, source_lang=source_lang, target_lang=target_lang)
+                        tm.add(
+                            seg_plain,
+                            ledger_done_inner_norm,
+                            score=1.0,
+                            source_lang=source_lang,
+                            target_lang=target_lang,
+                        )
                     if segment_ledger is not None:
-                        segment_ledger.mark_completed(chapter_path, sid, seg_plain, ledger_done_inner, provider="ledger", model=model)
+                        segment_ledger.mark_completed(
+                            chapter_path,
+                            sid,
+                            seg_plain,
+                            ledger_done_inner_norm,
+                            provider="ledger",
+                            model=model,
+                        )
                 else:
                     tm_hit = (
                         tm.lookup(
@@ -2539,12 +2795,20 @@ def translate_epub(
                         if polish_guard and not looks_like_target_language(tm_hit, target_lang, profiles=guard_profiles):
                             segs.append(Segment(idx=i, el=el, seg_id=sid, inner=seg_inner, plain=seg_plain))
                         else:
-                            replace_inner_xml(el, tm_hit)
+                            tm_hit_norm = _normalize_translated_inner(tm_hit)
+                            replace_inner_xml(el, tm_hit_norm)
                             chapter_tm += 1
                             global_done += 1
                             global_reused += 1
                             if segment_ledger is not None:
-                                segment_ledger.mark_completed(chapter_path, sid, seg_plain, tm_hit, provider="tm", model=model)
+                                segment_ledger.mark_completed(
+                                    chapter_path,
+                                    sid,
+                                    seg_plain,
+                                    tm_hit_norm,
+                                    provider="tm",
+                                    model=model,
+                                )
                     else:
                         segs.append(Segment(idx=i, el=el, seg_id=sid, inner=seg_inner, plain=seg_plain))
             if ctx_window > 0 and segs:
@@ -2636,6 +2900,7 @@ def translate_epub(
                             debug_dir=debug_dir,
                             debug_prefix=debug_prefix_local,
                         )
+                    tr_inner = _normalize_translated_inner(tr_inner)
                     if segment_ledger is not None:
                         segment_ledger.mark_completed(
                             chapter_path,
@@ -2843,6 +3108,12 @@ def translate_epub(
         f"changed={global_changed} reused={global_reused} "
         f"retranslated={global_retranslated} changed_retranslated={global_changed_retranslated}"
     )
+    print(
+        "[QUOTE-NORM] "
+        f"locale={target_lang} segments_changed={quote_stats.segments_changed} "
+        f"replacements={quote_stats.replacements} "
+        f"quotes={quote_stats.quote_replacements} apostrophes={quote_stats.apostrophe_replacements}"
+    )
 
     print("\n=== KONIEC ===")
     print(f"  Nowe tĹ‚umaczenia: {global_new}")
@@ -2856,6 +3127,11 @@ def translate_epub(
         "  Entity check:     "
         f"shy(delta={entity_report['delta_soft_hyphen']}), "
         f"nbsp(delta={entity_report['delta_nbsp']})"
+    )
+    print(
+        "  Quote norm:       "
+        f"segments={quote_stats.segments_changed} replacements={quote_stats.replacements} "
+        f"quotes={quote_stats.quote_replacements} apostrophes={quote_stats.apostrophe_replacements}"
     )
     if cache_path:
         print(f"  Cache:            {cache_path}")
@@ -2929,6 +3205,7 @@ def main() -> int:
     ap.add_argument("--semantic-gate-threshold", type=float, default=0.58, help="Prog semantic diff gate (0..1).")
     ap.add_argument("--semantic-gate-hard-threshold", type=float, default=0.42, help="Prog hard severity semantic gate (0..1).")
     ap.add_argument("--semantic-gate-min-chars", type=int, default=24, help="Min znakow do oceny semantic diff.")
+    ap.add_argument("--no-quote-normalization", action="store_true", help="Wylacz locale-aware normalizacje cudzyslowow i apostrofow.")
     ap.add_argument("--context-window", type=int, default=0, help="Liczba segmentow kontekstu przed i po kazdym segmencie.")
     ap.add_argument("--context-neighbor-max-chars", type=int, default=180, help="Max znakow na pojedynczy segment kontekstu.")
     ap.add_argument("--context-segment-max-chars", type=int, default=1200, help="Max znakow kontekstu przypisanych do jednego segmentu.")
@@ -3050,6 +3327,7 @@ def main() -> int:
             semantic_gate_hard_threshold=max(0.0, min(1.0, float(args.semantic_gate_hard_threshold))),
             semantic_gate_min_chars=max(1, int(args.semantic_gate_min_chars)),
             io_concurrency=max(1, int(args.io_concurrency)),
+            quote_normalization=not bool(args.no_quote_normalization),
         )
     finally:
         if segment_ledger is not None:
