@@ -4481,19 +4481,21 @@ class TranslatorGUI:
         self.root.after(0, lambda: self.validate_btn.configure(state="normal"))
         self.root.after(0, lambda: self.stop_btn.configure(state="disabled"))
 
+    def _resolve_validation_target(self) -> Optional[Path]:
+        out_file = Path(self.output_epub_var.get().strip()) if self.output_epub_var.get().strip() else None
+        in_file = Path(self.input_epub_var.get().strip()) if self.input_epub_var.get().strip() else None
+        if out_file and out_file.exists():
+            return out_file
+        if in_file and in_file.exists():
+            return in_file
+        return None
+
     def _start_validation(self) -> None:
         if self.proc is not None:
             self._msg_info(self.tr("info.process_running", "Process is already running."))
             return
 
-        out_file = Path(self.output_epub_var.get().strip()) if self.output_epub_var.get().strip() else None
-        in_file = Path(self.input_epub_var.get().strip()) if self.input_epub_var.get().strip() else None
-        target: Optional[Path] = None
-
-        if out_file and out_file.exists():
-            target = out_file
-        elif in_file and in_file.exists():
-            target = in_file
+        target = self._resolve_validation_target()
 
         if target is None:
             self._msg_error(self.tr("err.validation_no_epub", "No EPUB for validation (output or input)."))
