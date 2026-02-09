@@ -3,7 +3,7 @@
 Status:
 - `M1 wdrozone` w kodzie i dokumentacji (2026-02-08),
 - `M2 wdrozone` w kodzie i CI (2026-02-08),
-- `M3 zamrozone`: blokada po stronie GitHub Wiki backend (Issue 7 odlozone),
+- `M3 zrealizowane`: Wiki backend aktywny, opublikowane strony `Home`, `_Sidebar`, `Workflow-and-Recovery` (Issue 7 domkniete),
 - `M4 domkniete`: memory-first translation (cache + decision memory + adaptive prompting), z domknietymi metrykami ledgera/retry/timeout i eksportem release notes,
 - `M5 zrealizowane`: EPUB-aware segmentacja i integralnosc markup (`&shy;`, inline tags),
 - `M6 zrealizowane`: diff-aware retranslation + semantic diff gate do recenzji,
@@ -15,7 +15,7 @@ Zamienic roadmape na konkretne, mierzalne zadania z jasnym zakresem i kryteriami
 
 ## Aktywne milestone'y
 
-1. `M3: Workflow + Docs + Wiki (zamrozone)`
+1. `M3: Workflow + Docs + Wiki`
 2. Utrzymanie i stabilizacja M4-M7
 
 ## M1: UI Consistency + UX Telemetry
@@ -76,7 +76,7 @@ Status M2: `zrealizowane`.
 
 ## M3: Workflow + Docs + Wiki
 
-Status M3: `zamrozone` (2/3 issue zamkniete, blokada zewnetrzna po stronie GitHub Wiki backend).
+Status M3: `zrealizowane` (3/3 issue zamkniete).
 
 ### Issue 7: Inicjalizacja i utrzymanie Wiki
 - Zakres:
@@ -86,12 +86,12 @@ Status M3: `zamrozone` (2/3 issue zamkniete, blokada zewnetrzna po stronie GitHu
   - `/wiki` dziala bez przekierowania na strone repo,
   - wiki ma minimum 1 strone i sidebar.
 
-Status: `zamrozone` (backend Wiki wymaga inicjalizacji pierwszej strony `Home` przez UI GitHub).
+Status: `zrealizowane` (Wiki backend aktywny i zsynchronizowany skryptem publikacji).
 
 Postep:
-- gotowy pakiet stron wiki w repo: `docs/wiki/Home.md`, `docs/wiki/_Sidebar.md`, `docs/wiki/Workflow-and-Recovery.md`,
-- gotowy skrypt publikacji: `project-tkinter/scripts/publish_wiki.ps1`,
-- po jednorazowej inicjalizacji backendu Wiki (klik w UI) publikacja idzie automatycznie skryptem.
+- pakiet stron wiki opublikowany: `Home`, `_Sidebar`, `Workflow-and-Recovery`,
+- backend Wiki aktywny (`epub-translator-studio.wiki.git`),
+- publikacja wykonywana skryptem `project-tkinter/scripts/publish_wiki.ps1`.
 
 ### Issue 8: Release checklist i changelog discipline
 - Zakres:
@@ -267,7 +267,7 @@ Status:
 
 1. `M4` utrzymanie i stabilizacja po wdrozeniu.
 2. `M7` utrzymanie i ergonomia po wdrozeniu.
-3. `M3 / Issue 7` (Wiki backend + Home + sidebar) dopiero po odmrozeniu.
+3. Utrzymanie M3 (regularna synchronizacja `docs/wiki` -> Wiki).
 
 ## Definicja publikacji milestone
 
