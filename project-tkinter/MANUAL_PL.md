@@ -239,6 +239,11 @@ To wszystko. Masz pierwszy kompletny przebieg.
 5. `Odswiez liste modeli`
 - pobiera modele dostepne dla wybranego providera.
 
+6. `Health check I/O`
+- uruchamia asynchroniczny preflight providerow (`ollama` i `google`) z telemetryka:
+  status, opoznienie (ms) i liczba modeli.
+- wynik trafia do statusu modelu i logu jako wpisy `[HEALTH]`.
+
 ## 7.4 Ustawienia zaawansowane
 
 Najwazniejsze pola:
@@ -389,6 +394,9 @@ Do czego sluzy:
 Wazne:
 - pluginy sa ograniczone polityka bezpieczenstwa,
 - skrypt pluginu musi zgadzac sie z hash w `providers/manifest.json`.
+- `Health check selected` testuje pojedynczy plugin.
+- `Health check all (async)` uruchamia rownolegle testy wielu pluginow
+  (z limitem wspolbieznosci i timeoutem), pokazuje czas i status per plugin.
 
 ## 9. Jak dzialaja gate'y jakosci
 

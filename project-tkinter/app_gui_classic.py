@@ -47,6 +47,7 @@ from runtime_core import (
     RunOptions as CoreRunOptions,
     build_run_command as core_build_run_command,
     build_validation_command as core_build_validation_command,
+    gather_provider_health as core_gather_provider_health,
     list_google_models as core_list_google_models,
     list_ollama_models as core_list_ollama_models,
 )
@@ -67,7 +68,7 @@ PROMPT_PRESETS_FILE = Path(__file__).resolve().with_name("prompt_presets.json")
 GOOGLE_KEYRING_SERVICE = "epub-translator-studio"
 GOOGLE_KEYRING_USER = "google_api_key"
 EPUBCHECK_TIMEOUT_S = 120
-APP_RUNTIME_VERSION = "0.6.0"
+APP_RUNTIME_VERSION = "0.6.1"
 GLOBAL_PROGRESS_RE = re.compile(r"GLOBAL\s+(\d+)\s*/\s*(\d+)\s*\(([^)]*)\)\s*\|\s*(.*)")
 TOTAL_SEGMENTS_RE = re.compile(r"Segmenty\s+(?:Äąâ€šĂ„â€¦cznie|lacznie)\s*:\s*(\d+)", re.IGNORECASE)
 CACHE_SEGMENTS_RE = re.compile(r"Segmenty\s+z\s+cache\s*:\s*(\d+)", re.IGNORECASE)
@@ -101,6 +102,23 @@ def list_ollama_models(host: str, timeout_s: int = 20) -> List[str]:
 
 def list_google_models(api_key: str, timeout_s: int = 20) -> List[str]:
     return core_list_google_models(api_key=api_key, timeout_s=timeout_s)
+
+
+def gather_provider_health(
+    *,
+    ollama_host: str,
+    google_api_key: str,
+    timeout_s: int = 10,
+    include_ollama: bool = True,
+    include_google: bool = True,
+) -> Dict[str, Any]:
+    return core_gather_provider_health(
+        ollama_host=ollama_host,
+        google_api_key=google_api_key,
+        timeout_s=timeout_s,
+        include_ollama=include_ollama,
+        include_google=include_google,
+    )
 
 
 def quote_arg(arg: str) -> str:
@@ -1406,10 +1424,11 @@ class TranslatorGUI:
 
         self.model_combo = ttk.Combobox(card, textvariable=self.model_var, state="readonly")
         self.model_combo.grid(row=0, column=0, sticky="ew")
+        ttk.Button(card, text="Health check I/O", command=self._health_check_providers, style="Secondary.TButton").grid(row=0, column=2, padx=(8, 0))
         ttk.Button(card, text=self.tr("button.refresh_models", "OdÄąâ€şwieÄąÄ˝ listĂ„â„˘ modeli"), command=self._refresh_models, style="Secondary.TButton").grid(row=0, column=1, padx=(8, 0))
 
         self.model_status = ttk.Label(card, text="", style="Sub.TLabel")
-        self.model_status.grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        self.model_status.grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 0))
 
         card.columnconfigure(0, weight=1)
 
@@ -3541,6 +3560,62 @@ class TranslatorGUI:
         self.cache_var.set(str(p.with_name(cache_name)))
         step = self.mode_var.get().strip() or "translate"
         self._save_step_values(step)
+
+    def _health_state_badge(self, state: str) -> str:
+        s = str(state or "").strip().lower()
+        if s == "ok":
+            return "OK"
+        if s == "skip":
+            return "SKIP"
+        return "FAIL"
+
+    def _health_check_providers(self) -> None:
+        self.model_status.configure(text="Sprawdzam provider health (async I/O)...")
+        ollama_host = self.ollama_host_var.get().strip() or OLLAMA_HOST_DEFAULT
+        google_key = self._google_api_key()
+
+        def worker() -> None:
+            try:
+                timeout_s = max(6, min(30, int(float(self.timeout_var.get().strip() or "20"))))
+            except Exception:
+                timeout_s = 20
+            try:
+                status_map = gather_provider_health(
+                    ollama_host=ollama_host,
+                    google_api_key=google_key,
+                    timeout_s=timeout_s,
+                    include_ollama=True,
+                    include_google=True,
+                )
+            except Exception as e:
+                err = str(e)
+                self.root.after(0, lambda msg=err: self.model_status.configure(text=f"Health check fail: {msg}"))
+                return
+
+            lines: List[str] = []
+            details: List[str] = []
+            for key in ("ollama", "google"):
+                st = status_map.get(key)
+                if st is None:
+                    continue
+                badge = self._health_state_badge(getattr(st, "state", "fail"))
+                latency = int(getattr(st, "latency_ms", 0) or 0)
+                model_count = int(getattr(st, "model_count", 0) or 0)
+                lines.append(f"{key.upper()}={badge} {latency}ms m={model_count}")
+                detail = str(getattr(st, "detail", "") or "").strip()
+                if detail and badge != "OK":
+                    details.append(f"{key}: {detail}")
+            summary = " | ".join(lines) if lines else "Brak danych health check."
+
+            def apply_summary() -> None:
+                self.model_status.configure(text=summary)
+                self.log_queue.put(f"[HEALTH] {summary}\n")
+                for item in details:
+                    self.log_queue.put(f"[HEALTH] {item}\n")
+
+            self.root.after(0, apply_summary)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _refresh_models(self) -> None:
         self.model_status.configure(text="Pobieram listĂ„â„˘ modeli...")

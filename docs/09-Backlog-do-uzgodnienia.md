@@ -8,6 +8,7 @@ Status:
 - `M5 zrealizowane`: EPUB-aware segmentacja i integralnosc markup (`&shy;`, inline tags),
 - `M6 zrealizowane`: diff-aware retranslation + semantic diff gate do recenzji,
 - `M7 domkniete`: pelny series manager (termy + style rules + lorebook + historia), prompt augmentation kontekstem serii, orchestrator batch serii + raport.
+- Increment Async I/O: zrealizowany etap preflight providerow/pluginow (asynchroniczne health-checki i telemetryka), bez zmiany deterministycznego pipeline translacji.
 
 ## Cel
 

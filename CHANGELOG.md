@@ -42,6 +42,12 @@ All notable changes to this project are documented in this file.
   - `project-tkinter/tests/test_security_reliability_hardening.py`,
   - snapshot restore path traversal guard (`Zip Slip`) regression test,
   - interrupted-run startup recovery regression test.
+- Async I/O health-check features:
+  - provider preflight telemetry in runtime core (`project-tkinter/runtime_core.py`),
+  - GUI button `Health check I/O` in model card (`project-tkinter/app_gui_classic.py`, Horizon via inheritance),
+  - async multi-plugin health checks in Studio Tools (`Health check all (async)`).
+- Tests for async health checks:
+  - `project-tkinter/tests/test_async_health_checks.py`.
 
 ### Changed
 - Naming cleanup (repo alignment):

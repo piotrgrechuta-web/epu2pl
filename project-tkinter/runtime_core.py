@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence, Set
 
 import requests
 
@@ -49,6 +51,15 @@ class RunOptions:
     context_segment_max_chars: str = "1200"
 
 
+@dataclass
+class ProviderHealthStatus:
+    provider: str
+    state: str  # ok | fail | skip
+    latency_ms: int
+    model_count: int
+    detail: str
+
+
 def list_ollama_models(host: str, timeout_s: int = 20) -> List[str]:
     url = host.rstrip("/") + "/api/tags"
     r = requests.get(url, timeout=timeout_s)
@@ -82,6 +93,119 @@ def list_google_models(api_key: str, timeout_s: int = 20) -> List[str]:
         if ok and name.strip():
             out.append(name.strip())
     return sorted(set(out))
+
+
+def _short_error(err: Exception, max_len: int = 240) -> str:
+    msg = f"{type(err).__name__}: {err}".strip()
+    if len(msg) <= max_len:
+        return msg
+    return msg[: max_len - 3] + "..."
+
+
+def check_ollama_health(host: str, timeout_s: int = 10) -> ProviderHealthStatus:
+    started = time.perf_counter()
+    try:
+        models = list_ollama_models(host, timeout_s=timeout_s)
+        ms = int((time.perf_counter() - started) * 1000.0)
+        return ProviderHealthStatus(
+            provider="ollama",
+            state="ok",
+            latency_ms=ms,
+            model_count=len(models),
+            detail=f"host={host.rstrip('/')}/api/tags",
+        )
+    except Exception as e:
+        ms = int((time.perf_counter() - started) * 1000.0)
+        return ProviderHealthStatus(
+            provider="ollama",
+            state="fail",
+            latency_ms=ms,
+            model_count=0,
+            detail=_short_error(e),
+        )
+
+
+def check_google_health(api_key: str, timeout_s: int = 10) -> ProviderHealthStatus:
+    key = (api_key or "").strip()
+    if not key:
+        return ProviderHealthStatus(
+            provider="google",
+            state="skip",
+            latency_ms=0,
+            model_count=0,
+            detail=f"missing API key ({GOOGLE_API_KEY_ENV})",
+        )
+    started = time.perf_counter()
+    try:
+        models = list_google_models(key, timeout_s=timeout_s)
+        ms = int((time.perf_counter() - started) * 1000.0)
+        return ProviderHealthStatus(
+            provider="google",
+            state="ok",
+            latency_ms=ms,
+            model_count=len(models),
+            detail="models endpoint",
+        )
+    except Exception as e:
+        ms = int((time.perf_counter() - started) * 1000.0)
+        return ProviderHealthStatus(
+            provider="google",
+            state="fail",
+            latency_ms=ms,
+            model_count=0,
+            detail=_short_error(e),
+        )
+
+
+async def gather_provider_health_async(
+    *,
+    ollama_host: str,
+    google_api_key: str,
+    timeout_s: int = 10,
+    include_ollama: bool = True,
+    include_google: bool = True,
+) -> Dict[str, ProviderHealthStatus]:
+    tasks: Dict[str, "asyncio.Task[ProviderHealthStatus]"] = {}
+    if include_ollama:
+        tasks["ollama"] = asyncio.create_task(
+            asyncio.to_thread(check_ollama_health, ollama_host, timeout_s)
+        )
+    if include_google:
+        tasks["google"] = asyncio.create_task(
+            asyncio.to_thread(check_google_health, google_api_key, timeout_s)
+        )
+    out: Dict[str, ProviderHealthStatus] = {}
+    for key, task in tasks.items():
+        try:
+            out[key] = await task
+        except Exception as e:
+            out[key] = ProviderHealthStatus(
+                provider=key,
+                state="fail",
+                latency_ms=0,
+                model_count=0,
+                detail=_short_error(e),
+            )
+    return out
+
+
+def gather_provider_health(
+    *,
+    ollama_host: str,
+    google_api_key: str,
+    timeout_s: int = 10,
+    include_ollama: bool = True,
+    include_google: bool = True,
+) -> Dict[str, ProviderHealthStatus]:
+    return asyncio.run(
+        gather_provider_health_async(
+            ollama_host=ollama_host,
+            google_api_key=google_api_key,
+            timeout_s=timeout_s,
+            include_ollama=include_ollama,
+            include_google=include_google,
+        )
+    )
 
 
 def validate_run_options(
