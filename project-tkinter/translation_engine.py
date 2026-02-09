@@ -1149,23 +1149,62 @@ def build_batch_context_notes(batch: List[Segment], *, max_total_chars: int = 70
     return note
 
 
-def chunk_segments(segments: List[Segment], batch_max_chars: int, batch_max_segs: int) -> Iterable[List[Segment]]:
+def _segment_text_len(seg: Segment) -> int:
+    txt = re.sub(r"\s+", " ", str(seg.plain or "")).strip()
+    return len(txt)
+
+
+def chunk_segments(
+    segments: List[Segment],
+    batch_max_chars: int,
+    batch_max_segs: int,
+    *,
+    short_merge_enabled: bool = True,
+    short_segment_max_chars: int = 60,
+    short_batch_target_chars: int = 1400,
+    short_batch_max_segs: int = 24,
+) -> Iterable[List[Segment]]:
+    hard_char_limit = max(1, int(batch_max_chars))
+    hard_seg_limit = max(1, int(batch_max_segs))
+    short_text_limit = max(1, int(short_segment_max_chars))
+    short_target_chars = min(hard_char_limit, max(128, int(short_batch_target_chars)))
+    short_soft_seg_limit = max(hard_seg_limit, int(short_batch_max_segs))
+
     batch: List[Segment] = []
     size = 0
+    batch_all_short = True
     for seg in segments:
         seg_size = len(seg.inner) + 64
-        if batch and ((size + seg_size) > batch_max_chars or len(batch) >= batch_max_segs):
-            yield batch
-            batch = []
-            size = 0
+        seg_is_short = _segment_text_len(seg) <= short_text_limit
+
+        if batch:
+            would_overflow_chars = (size + seg_size) > hard_char_limit
+            would_overflow_segs = len(batch) >= hard_seg_limit
+            allow_soft_short_merge = bool(
+                short_merge_enabled
+                and would_overflow_segs
+                and not would_overflow_chars
+                and batch_all_short
+                and seg_is_short
+                and len(batch) < short_soft_seg_limit
+                and size < short_target_chars
+                and (size + seg_size) <= short_target_chars
+            )
+            if would_overflow_chars or (would_overflow_segs and not allow_soft_short_merge):
+                yield batch
+                batch = []
+                size = 0
+                batch_all_short = True
 
         batch.append(seg)
         size += seg_size
+        batch_all_short = batch_all_short and seg_is_short
 
-        if len(batch) == 1 and seg_size > batch_max_chars:
+        if len(batch) == 1 and seg_size > hard_char_limit:
             yield batch
             batch = []
             size = 0
+            batch_all_short = True
     if batch:
         yield batch
 
@@ -2530,6 +2569,10 @@ def translate_epub(
     semantic_gate_min_chars: int = 24,
     io_concurrency: int = 1,
     quote_normalization: bool = True,
+    short_merge_enabled: bool = True,
+    short_segment_max_chars: int = 60,
+    short_batch_target_chars: int = 1400,
+    short_batch_max_segs: int = 24,
 ) -> None:
     source_lang = (source_lang or "en").strip().lower()
     target_lang = (target_lang or "pl").strip().lower()
@@ -2541,6 +2584,9 @@ def translate_epub(
     ctx_neighbor_max = max(24, int(context_neighbor_max_chars))
     ctx_per_seg_max = max(80, int(context_per_segment_max_chars))
     effective_io_concurrency = max(1, int(io_concurrency or 1))
+    short_merge_short_limit = max(1, int(short_segment_max_chars))
+    short_merge_target_chars = max(128, int(short_batch_target_chars))
+    short_merge_seg_limit = max(1, int(short_batch_max_segs))
     if ctx_window > 0:
         print(
             "[SMART-CONTEXT] "
@@ -2552,6 +2598,15 @@ def translate_epub(
             f"provider={provider} io_concurrency={effective_io_concurrency} "
             f"dispatch_interval={max(0.0, float(sleep_s or 0.0)):g}s"
         )
+    if short_merge_enabled:
+        print(
+            "[SHORT-MERGE] "
+            f"short_segment_max_chars={short_merge_short_limit} "
+            f"short_batch_target_chars={short_merge_target_chars} "
+            f"short_batch_max_segs={short_merge_seg_limit}"
+        )
+    else:
+        print("[SHORT-MERGE] disabled")
     if not quote_normalization:
         print("[QUOTE-NORM] disabled")
     base_prompt = base_prompt.strip() + "\n\n" + build_language_instruction(source_lang, target_lang)
@@ -2960,7 +3015,18 @@ def translate_epub(
                 )
 
             batch_jobs: List[Tuple[int, List[Segment], str]] = []
-            for batch_no, batch in enumerate(chunk_segments(segs, batch_max_chars, batch_max_segs), 1):
+            for batch_no, batch in enumerate(
+                chunk_segments(
+                    segs,
+                    batch_max_chars,
+                    batch_max_segs,
+                    short_merge_enabled=short_merge_enabled,
+                    short_segment_max_chars=short_merge_short_limit,
+                    short_batch_target_chars=short_merge_target_chars,
+                    short_batch_max_segs=short_merge_seg_limit,
+                ),
+                1,
+            ):
                 debug_prefix = f"{Path(chapter_path).stem}_b{batch_no:04d}"
                 batch_first_idx = batch[0].idx if batch else -1
                 batch_last_idx = batch[-1].idx if batch else -1
@@ -3206,6 +3272,10 @@ def main() -> int:
     ap.add_argument("--semantic-gate-hard-threshold", type=float, default=0.42, help="Prog hard severity semantic gate (0..1).")
     ap.add_argument("--semantic-gate-min-chars", type=int, default=24, help="Min znakow do oceny semantic diff.")
     ap.add_argument("--no-quote-normalization", action="store_true", help="Wylacz locale-aware normalizacje cudzyslowow i apostrofow.")
+    ap.add_argument("--no-short-merge", action="store_true", help="Wylacz inteligentne laczenie bardzo krotkich segmentow.")
+    ap.add_argument("--short-segment-max-chars", type=int, default=60, help="Maksymalna dlugosc segmentu (tekst) dla short-merge.")
+    ap.add_argument("--short-batch-target-chars", type=int, default=1400, help="Docelowy limit znakow partii short-merge (hard cap to --batch-max-chars).")
+    ap.add_argument("--short-batch-max-segs", type=int, default=24, help="Miekki limit liczby segmentow partii short-merge.")
     ap.add_argument("--context-window", type=int, default=0, help="Liczba segmentow kontekstu przed i po kazdym segmencie.")
     ap.add_argument("--context-neighbor-max-chars", type=int, default=180, help="Max znakow na pojedynczy segment kontekstu.")
     ap.add_argument("--context-segment-max-chars", type=int, default=1200, help="Max znakow kontekstu przypisanych do jednego segmentu.")
@@ -3328,6 +3398,10 @@ def main() -> int:
             semantic_gate_min_chars=max(1, int(args.semantic_gate_min_chars)),
             io_concurrency=max(1, int(args.io_concurrency)),
             quote_normalization=not bool(args.no_quote_normalization),
+            short_merge_enabled=not bool(args.no_short_merge),
+            short_segment_max_chars=max(1, int(args.short_segment_max_chars)),
+            short_batch_target_chars=max(128, int(args.short_batch_target_chars)),
+            short_batch_max_segs=max(1, int(args.short_batch_max_segs)),
         )
     finally:
         if segment_ledger is not None:

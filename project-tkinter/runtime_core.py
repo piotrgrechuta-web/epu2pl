@@ -53,6 +53,10 @@ class RunOptions:
     context_segment_max_chars: str = "1200"
     io_concurrency: str = "1"
     language_guard_config: str = ""
+    short_merge_enabled: bool = True
+    short_segment_max_chars: str = "60"
+    short_batch_target_chars: str = "1400"
+    short_batch_max_segs: str = "24"
 
 
 @dataclass
@@ -274,6 +278,9 @@ def validate_run_options(
         ("context_window", opts.context_window, 0),
         ("context_neighbor_max_chars", opts.context_neighbor_max_chars, 24),
         ("context_segment_max_chars", opts.context_segment_max_chars, 80),
+        ("short_segment_max_chars", opts.short_segment_max_chars, 1),
+        ("short_batch_target_chars", opts.short_batch_target_chars, 128),
+        ("short_batch_max_segs", opts.short_batch_max_segs, 1),
     ]
     for field_name, raw_value, min_value in int_min_rules:
         parsed, err = _parse_int(raw_value, field_name)
@@ -408,6 +415,23 @@ def build_run_command(
             c_s = 1200
         cmd += ["--context-neighbor-max-chars", str(c_n)]
         cmd += ["--context-segment-max-chars", str(c_s)]
+    if not bool(opts.short_merge_enabled):
+        cmd += ["--no-short-merge"]
+    try:
+        short_seg_chars = max(1, int(str(opts.short_segment_max_chars or "").strip() or "60"))
+    except Exception:
+        short_seg_chars = 60
+    try:
+        short_target_chars = max(128, int(str(opts.short_batch_target_chars or "").strip() or "1400"))
+    except Exception:
+        short_target_chars = 1400
+    try:
+        short_max_segs = max(1, int(str(opts.short_batch_max_segs or "").strip() or "24"))
+    except Exception:
+        short_max_segs = 24
+    cmd += ["--short-segment-max-chars", str(short_seg_chars)]
+    cmd += ["--short-batch-target-chars", str(short_target_chars)]
+    cmd += ["--short-batch-max-segs", str(short_max_segs)]
     return cmd
 
 

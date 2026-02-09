@@ -17,9 +17,11 @@ from app_gui_classic import parse_epubcheck_findings  # noqa: E402
 from project_db import ProjectDB  # noqa: E402
 from text_preserve import set_text_preserving_inline, tokenize_inline_markup, apply_tokenized_inline_markup  # noqa: E402
 from translation_engine import (  # noqa: E402
+    Segment,
     SegmentLedger,
     TranslationMemory,
     build_batch_payload,
+    chunk_segments,
     seed_segment_ledger_from_epub,
     translate_epub,
     validate_entity_integrity,
@@ -438,6 +440,9 @@ def test_build_run_command_includes_run_step() -> None:
         context_window="5",
         context_neighbor_max_chars="200",
         context_segment_max_chars="1500",
+        short_segment_max_chars="48",
+        short_batch_target_chars="900",
+        short_batch_max_segs="18",
     )
     cmd = build_run_command(["python", "-u", "translation_engine.py"], opts)
     assert "--run-step" in cmd
@@ -450,6 +455,39 @@ def test_build_run_command_includes_run_step() -> None:
     assert "--context-segment-max-chars" in cmd
     assert "--io-concurrency" in cmd
     assert cmd[cmd.index("--io-concurrency") + 1] == "3"
+    assert "--short-segment-max-chars" in cmd
+    assert cmd[cmd.index("--short-segment-max-chars") + 1] == "48"
+    assert "--short-batch-target-chars" in cmd
+    assert cmd[cmd.index("--short-batch-target-chars") + 1] == "900"
+    assert "--short-batch-max-segs" in cmd
+    assert cmd[cmd.index("--short-batch-max-segs") + 1] == "18"
+
+
+def test_build_run_command_can_disable_short_merge() -> None:
+    opts = RunOptions(
+        provider="ollama",
+        input_epub="in.epub",
+        output_epub="out.epub",
+        prompt="prompt.txt",
+        model="llama3.1:8b",
+        batch_max_segs="6",
+        batch_max_chars="12000",
+        sleep="0",
+        timeout="300",
+        attempts="3",
+        backoff="5,15,30",
+        temperature="0.1",
+        num_ctx="8192",
+        num_predict="2048",
+        tags="p,li",
+        checkpoint="0",
+        debug_dir="debug",
+        source_lang="en",
+        target_lang="pl",
+        short_merge_enabled=False,
+    )
+    cmd = build_run_command(["python", "-u", "translation_engine.py"], opts)
+    assert "--no-short-merge" in cmd
 
 
 def test_build_run_command_includes_language_guard_config(tmp_path: Path) -> None:
@@ -577,6 +615,44 @@ def test_build_context_hints_uses_neighbor_window() -> None:
     assert "Gamma three." in hints["s2"]
     assert "Beta two." in hints["s3"]
     assert "Delta four." in hints["s3"]
+
+
+def _mk_segment(idx: int, text: str) -> Segment:
+    el = etree.Element("p")
+    el.text = text
+    return Segment(idx=idx, el=el, seg_id=f"seg-{idx}", inner=text, plain=text)
+
+
+def test_chunk_segments_soft_merge_short_segments() -> None:
+    segs = [_mk_segment(i, "Hi.") for i in range(1, 9)]
+    chunks = list(
+        chunk_segments(
+            segs,
+            batch_max_chars=12000,
+            batch_max_segs=2,
+            short_merge_enabled=True,
+            short_segment_max_chars=12,
+            short_batch_target_chars=400,
+            short_batch_max_segs=10,
+        )
+    )
+    assert [len(ch) for ch in chunks] == [5, 3]
+
+
+def test_chunk_segments_respects_classic_limit_when_short_merge_disabled() -> None:
+    segs = [_mk_segment(i, "Hi.") for i in range(1, 9)]
+    chunks = list(
+        chunk_segments(
+            segs,
+            batch_max_chars=12000,
+            batch_max_segs=2,
+            short_merge_enabled=False,
+            short_segment_max_chars=12,
+            short_batch_target_chars=400,
+            short_batch_max_segs=10,
+        )
+    )
+    assert [len(ch) for ch in chunks] == [2, 2, 2, 2]
 
 
 def test_segment_ledger_seed_initializes_pending_and_tracks_completed(tmp_path: Path) -> None:
