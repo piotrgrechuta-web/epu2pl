@@ -4342,7 +4342,12 @@ class TranslatorGUI:
             runner_db: Optional[ProjectDB] = None
             try:
                 runner_db = ProjectDB(SQLITE_FILE)
-                env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+                env = {
+                    **os.environ,
+                    "PYTHONUNBUFFERED": "1",
+                    "PYTHONIOENCODING": "utf-8",
+                    "PYTHONUTF8": "1",
+                }
                 if provider == "google":
                     if google_api_key:
                         env[GOOGLE_API_KEY_ENV] = google_api_key
@@ -4530,7 +4535,12 @@ class TranslatorGUI:
                 self.proc = subprocess.Popen(
                     cmd,
                     cwd=str(self.workdir),
-                    env={**os.environ, "PYTHONUNBUFFERED": "1"},
+                    env={
+                        **os.environ,
+                        "PYTHONUNBUFFERED": "1",
+                        "PYTHONIOENCODING": "utf-8",
+                        "PYTHONUTF8": "1",
+                    },
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
