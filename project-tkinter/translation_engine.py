@@ -39,6 +39,14 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Pr
 import requests
 from requests.exceptions import ReadTimeout, ConnectionError as ReqConnectionError, HTTPError
 from lxml import etree
+from retry_ux import (
+    RETRY_RECOVERED,
+    RetryTelemetry,
+    adaptive_backoff_sleep,
+    format_retry_telemetry,
+    retry_state_for_attempt,
+    terminal_retry_summary,
+)
 
 
 XHTML_NS = "http://www.w3.org/1999/xhtml"
@@ -243,6 +251,7 @@ class OllamaClient:
             timeouts.append(timeouts[-1])
 
         last_err: Optional[Exception] = None
+        had_waiting_retry = False
         for attempt in range(1, self.cfg.max_attempts + 1):
             tmo = timeouts[attempt - 1]
             try:
@@ -250,19 +259,56 @@ class OllamaClient:
                 r.raise_for_status()
                 data = r.json()
                 out = data.get("response", "")
+                if had_waiting_retry:
+                    print(
+                        format_retry_telemetry(
+                            RetryTelemetry(
+                                provider="ollama",
+                                state=RETRY_RECOVERED,
+                                error_type="transient",
+                                attempt=attempt,
+                                max_attempts=self.cfg.max_attempts,
+                                sleep_s=0.0,
+                                recovered=True,
+                            )
+                        )
+                    )
                 return out if isinstance(out, str) else str(out)
             except (ReadTimeout, ReqConnectionError) as e:
                 last_err = e
-                sleep_s = self.cfg.backoff_s[min(attempt - 1, len(self.cfg.backoff_s) - 1)]
-                print(f"  [Ollama] timeout/conn error (prĂłba {attempt}/{self.cfg.max_attempts}; timeout={tmo}s). "
-                      f"Czekam {sleep_s}s i ponawiam...")
+                if attempt >= self.cfg.max_attempts:
+                    break
+                base_sleep = float(self.cfg.backoff_s[min(attempt - 1, len(self.cfg.backoff_s) - 1)])
+                sleep_s = adaptive_backoff_sleep(base_sleep_s=base_sleep, retry_after_s=None)
+                print(
+                    format_retry_telemetry(
+                        RetryTelemetry(
+                            provider="ollama",
+                            state=retry_state_for_attempt(attempt, self.cfg.max_attempts),
+                            error_type="timeout_conn",
+                            attempt=attempt,
+                            max_attempts=self.cfg.max_attempts,
+                            sleep_s=sleep_s,
+                            recovered=False,
+                        )
+                    )
+                )
+                print("  [Ollama] Working, waiting for provider window...")
+                had_waiting_retry = True
                 time.sleep(sleep_s)
             except Exception as e:
                 last_err = e
                 break
 
         if last_err:
-            raise last_err
+            raise RuntimeError(
+                terminal_retry_summary(
+                    provider="ollama",
+                    error_type="timeout_conn",
+                    max_attempts=self.cfg.max_attempts,
+                    last_error=last_err,
+                )
+            )
         raise RuntimeError("Nieznany bĹ‚Ä…d w OllamaClient.generate().")
 
 
@@ -394,6 +440,8 @@ class GoogleClient:
         }
 
         last_err: Optional[Exception] = None
+        had_waiting_retry = False
+        last_error_type = "unknown"
         for attempt in range(1, self.cfg.max_attempts + 1):
             try:
                 self._sleep_until_allowed()
@@ -405,16 +453,29 @@ class GoogleClient:
                     self._bump_throttle()
                     base_sleep = self.cfg.backoff_s[min(attempt - 1, len(self.cfg.backoff_s) - 1)]
                     retry_after = r.headers.get("Retry-After")
-                    sleep_s = float(base_sleep)
                     ra_val = None
                     if retry_after:
                         try:
                             ra_val = float(str(retry_after).strip())
-                            sleep_s = max(sleep_s, ra_val)
                         except Exception:
                             pass
-                    print(f"  [Google] HTTP {r.status_code} (prĂłba {attempt}/{self.cfg.max_attempts}). "
-                          f"Czekam {sleep_s:g}s i ponawiam...")
+                    sleep_s = adaptive_backoff_sleep(base_sleep_s=float(base_sleep), retry_after_s=ra_val)
+                    last_error_type = f"http_{int(r.status_code)}"
+                    print(
+                        format_retry_telemetry(
+                            RetryTelemetry(
+                                provider="google",
+                                state=retry_state_for_attempt(attempt, self.cfg.max_attempts),
+                                error_type=last_error_type,
+                                attempt=attempt,
+                                max_attempts=self.cfg.max_attempts,
+                                sleep_s=sleep_s,
+                                recovered=False,
+                            )
+                        )
+                    )
+                    print("  [Google] Working, waiting for provider window...")
+                    had_waiting_retry = True
                     time.sleep(sleep_s)
                     self._after_request()
                     continue
@@ -453,6 +514,20 @@ class GoogleClient:
                     if isinstance(t, str):
                         texts.append(t)
                 self._decay_throttle()
+                if had_waiting_retry:
+                    print(
+                        format_retry_telemetry(
+                            RetryTelemetry(
+                                provider="google",
+                                state=RETRY_RECOVERED,
+                                error_type=last_error_type,
+                                attempt=attempt,
+                                max_attempts=self.cfg.max_attempts,
+                                sleep_s=0.0,
+                                recovered=True,
+                            )
+                        )
+                    )
                 return "".join(texts).strip()
 
             except (ReadTimeout, ReqConnectionError) as e:
@@ -461,9 +536,24 @@ class GoogleClient:
                     break
                 self._bump_throttle()
                 sleep_s = self.cfg.backoff_s[min(attempt - 1, len(self.cfg.backoff_s) - 1)]
-                print(f"  [Google] timeout/conn error (prĂłba {attempt}/{self.cfg.max_attempts}). "
-                      f"Czekam {sleep_s}s i ponawiam...")
-                time.sleep(sleep_s)
+                last_error_type = "timeout_conn"
+                sleep_adaptive = adaptive_backoff_sleep(base_sleep_s=float(sleep_s), retry_after_s=None)
+                print(
+                    format_retry_telemetry(
+                        RetryTelemetry(
+                            provider="google",
+                            state=retry_state_for_attempt(attempt, self.cfg.max_attempts),
+                            error_type=last_error_type,
+                            attempt=attempt,
+                            max_attempts=self.cfg.max_attempts,
+                            sleep_s=sleep_adaptive,
+                            recovered=False,
+                        )
+                    )
+                )
+                print("  [Google] Working, waiting for provider window...")
+                had_waiting_retry = True
+                time.sleep(sleep_adaptive)
                 self._after_request()
             except GoogleHTTPError as e:
                 last_err = e
@@ -474,7 +564,16 @@ class GoogleClient:
                 break
 
         if last_err:
-            raise last_err
+            if isinstance(last_err, GoogleHTTPError) and last_err.status_code not in (408, 409, 429, 500, 502, 503, 504):
+                raise last_err
+            raise RuntimeError(
+                terminal_retry_summary(
+                    provider="google",
+                    error_type=last_error_type,
+                    max_attempts=self.cfg.max_attempts,
+                    last_error=last_err,
+                )
+            )
         raise RuntimeError("Nieznany bĹ‚Ä…d w GoogleClient.generate().")
 
 

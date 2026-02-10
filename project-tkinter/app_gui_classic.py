@@ -4113,6 +4113,16 @@ class TranslatorGUI:
             return
         self.last_log_at = time.time()
         self._collect_runtime_metrics_from_log(s)
+        if "[RETRY]" in s and "state=waiting_retry" in s:
+            self.phase_var.set(self.tr("status.phase.retry_wait", "Phase: working, waiting for provider window"))
+            self._set_status(self.tr("status.translation.running", "Translation in progress..."), "running")
+            self._update_live_run_metrics()
+            return
+        if "[RETRY]" in s and "state=recovered" in s:
+            self.phase_var.set(self.tr("status.phase.retry_recovered", "Phase: provider recovered"))
+            self._set_status(self.tr("status.translation.running", "Translation in progress..."), "running")
+            self._update_live_run_metrics()
+            return
 
         m = GLOBAL_PROGRESS_RE.search(s)
         if m:
