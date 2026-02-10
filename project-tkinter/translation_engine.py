@@ -121,8 +121,8 @@ def _cache_prefix(seg_id: str) -> Optional[str]:
 class Cache:
     """Cache .jsonl (resume) + bezpiecznik: fuzzy match po prefiksie segmentu.
 
-    JeĹ›li hash segmentu siÄ™ zmieni (np. drobna modyfikacja HTML), a rozdziaĹ‚ i idx zostajÄ…,
-    odzyskujemy tĹ‚umaczenie z cache po prefiksie <chapter>__<idx>.
+    Jeśli hash segmentu się zmieni (np. drobna modyfikacja HTML), a rozdział i idx zostają,
+    odzyskujemy tłumaczenie z cache po prefiksie <chapter>__<idx>.
     """
 
     def __init__(self, path: Optional[Path]):
@@ -225,7 +225,7 @@ class OllamaClient:
         data = r.json()
         models = [m.get("name") for m in data.get("models", []) if m.get("name")]
         if not models:
-            raise RuntimeError("Ollama /api/tags nie zwrĂłciĹ‚o ĹĽadnych modeli. ZrĂłb: ollama pull <nazwa>.")
+            raise RuntimeError("Ollama /api/tags nie zwróciło żadnych modeli. Zrób: ollama pull <nazwa>.")
         return models[0]
 
     def generate(self, prompt: str, model: str) -> str:
@@ -309,7 +309,7 @@ class OllamaClient:
                     last_error=last_err,
                 )
             )
-        raise RuntimeError("Nieznany bĹ‚Ä…d w OllamaClient.generate().")
+        raise RuntimeError("Nieznany błąd w OllamaClient.generate().")
 
 
 # ----------------------------
@@ -338,13 +338,13 @@ class GoogleConfig:
     max_attempts: int = 3
     backoff_s: Tuple[int, ...] = (5, 15, 30)
 
-    # adaptive throttling (reaguje na bĹ‚Ä™dy 429/5xx)
+    # adaptive throttling (reaguje na błędy 429/5xx)
     max_extra_throttle_s: float = 10.0
     throttle_step_s: float = 0.5
 
 
 class GoogleClient:
-    """Minimalny klient Gemini generateContent (v1beta) + rozszerzona reakcja na bĹ‚Ä™dy."""
+    """Minimalny klient Gemini generateContent (v1beta) + rozszerzona reakcja na błędy."""
 
     def __init__(self, cfg: GoogleConfig):
         if not cfg.api_key or not cfg.api_key.strip():
@@ -391,14 +391,14 @@ class GoogleClient:
                     return x
             if chosen in available:
                 raise RuntimeError(f"Model '{chosen}' jest widoczny dla klucza, ale nie wspiera generateContent.")
-            raise RuntimeError(f"Model '{chosen}' nie jest dostÄ™pny dla tego klucza API.")
-        # jeĹĽeli user nie podaĹ‚ modelu, bierz pierwszy wspierajÄ…cy generateContent
+            raise RuntimeError(f"Model '{chosen}' nie jest dostępny dla tego klucza API.")
+        # jeżeli user nie podał modelu, bierz pierwszy wspierający generateContent
         for m in models:
             if supports_generate(m):
                 name = m.get("name")
                 if isinstance(name, str) and name:
                     return name
-        raise RuntimeError("Nie znaleziono ĹĽadnego modelu wspierajÄ…cego generateContent dla tego klucza.")
+        raise RuntimeError("Nie znaleziono żadnego modelu wspierającego generateContent dla tego klucza.")
 
     def _sleep_until_allowed(self) -> None:
         base = float(getattr(self.cfg, "min_interval_s", 0.0) or 0.0)
@@ -408,7 +408,7 @@ class GoogleClient:
             extra = self._extra_throttle
         if wait > 0:
             time.sleep(wait)
-        # dodatkowe throttling reagujÄ…ce na bĹ‚Ä™dy
+        # dodatkowe throttling reagujące na błędy
         if extra > 0:
             time.sleep(extra)
 
@@ -418,7 +418,7 @@ class GoogleClient:
             self._next_allowed_ts = time.time() + base
 
     def _bump_throttle(self) -> None:
-        # roĹ›nie do max_extra_throttle_s, skok throttle_step_s
+        # rośnie do max_extra_throttle_s, skok throttle_step_s
         step = float(self.cfg.throttle_step_s or 0.5)
         max_t = float(self.cfg.max_extra_throttle_s or 10.0)
         with self._throttle_lock:
@@ -447,7 +447,7 @@ class GoogleClient:
                 self._sleep_until_allowed()
                 r = self.session.post(url, json=payload, timeout=self.cfg.timeout_s)
 
-                # BĹ‚Ä™dy, na ktĂłre reagujemy retry + backoff:
+                # Błędy, na które reagujemy retry + backoff:
                 # 429 (quota/rate limit), 408/409 (sporadycznie), 500-504 (chwilowe)
                 if r.status_code in (408, 409, 429, 500, 502, 503, 504) and attempt < self.cfg.max_attempts:
                     self._bump_throttle()
@@ -481,7 +481,7 @@ class GoogleClient:
                     continue
 
                 if r.status_code >= 400:
-                    # Nie retry'ujemy w ciemno na inne 4xx; przekaĹĽ do warstwy wyĹĽej (batch splitter/fallback)
+                    # Nie retry'ujemy w ciemno na inne 4xx; przekaż do warstwy wyżej (batch splitter/fallback)
                     retry_after = None
                     ra = r.headers.get("Retry-After")
                     if ra:
@@ -557,7 +557,7 @@ class GoogleClient:
                 self._after_request()
             except GoogleHTTPError as e:
                 last_err = e
-                # dla 4xx (poza 408/409/429) nie robimy retry tutaj; warstwa batch moĹĽe podzieliÄ‡ payload
+                # dla 4xx (poza 408/409/429) nie robimy retry tutaj; warstwa batch może podzielić payload
                 break
             except Exception as e:
                 last_err = e
@@ -574,7 +574,7 @@ class GoogleClient:
                     last_error=last_err,
                 )
             )
-        raise RuntimeError("Nieznany bĹ‚Ä…d w GoogleClient.generate().")
+        raise RuntimeError("Nieznany błąd w GoogleClient.generate().")
 
 
 # ----------------------------
@@ -646,11 +646,11 @@ def pick_glossary_snippet(text: str, index: Dict[str, List[GlossaryEntry]], max_
     if not chosen:
         return ""
 
-    lines = ["Terminologia wiÄ…ĹĽÄ…ca (uĹĽyj dokĹ‚adnie tych form):"]
+    lines = ["Terminologia wiążąca (użyj dokładnie tych form):"]
     for e in chosen:
         v = "; ".join(e.variants[:6])
         if e.note:
-            lines.append(f"- {e.canonical} (EN: {v}) â€” {e.note}")
+            lines.append(f"- {e.canonical} (EN: {v}) — {e.note}")
         else:
             lines.append(f"- {e.canonical} (EN: {v})")
     return "\n".join(lines).strip()
@@ -1577,7 +1577,7 @@ def write_epub_atomic(
 # ----------------------------
 
 def is_google_retriable_error(e: Exception) -> bool:
-    # GoogleClient juĹĽ retry'uje 408/409/429/5xx; tu decydujemy o fallbackach i splitach.
+    # GoogleClient już retry'uje 408/409/429/5xx; tu decydujemy o fallbackach i splitach.
     if isinstance(e, GoogleHTTPError):
         return e.status_code in (408, 409, 429, 500, 502, 503, 504)
     if isinstance(e, (ReadTimeout, ReqConnectionError)):
@@ -1586,10 +1586,10 @@ def is_google_retriable_error(e: Exception) -> bool:
 
 
 def is_google_too_large(e: Exception) -> bool:
-    # Zbyt duĹĽe ĹĽÄ…danie / payload / model odrzuca:
+    # Zbyt duże żądanie / payload / model odrzuca:
     if isinstance(e, GoogleHTTPError):
         return e.status_code in (400, 413)
-    # czasem API zwraca 400 z message o przekroczeniu limitu; to Ĺ‚apiemy heurystycznie
+    # czasem API zwraca 400 z message o przekroczeniu limitu; to łapiemy heurystycznie
     s = str(e).lower()
     return ("request entity too large" in s) or ("payload" in s and "too large" in s) or ("exceeds" in s and "limit" in s)
 
@@ -1695,9 +1695,9 @@ def translate_batch_with_google_strategy(
 ) -> Dict[str, str]:
     """
     Strategia pod Google:
-    - SprĂłbuj batch
-    - JeĹ›li bĹ‚Ä…d "too large" (400/413) lub parsing/kompletnoĹ›Ä‡ padnie -> dziel batch na pĂłĹ‚ i prĂłbuj dalej
-    - JeĹ›li 429/5xx/timeout -> retry klienta; jeĹ›li nadal bĹ‚Ä…d -> podziel batch (mniejsze requesty)
+    - Spróbuj batch
+    - Jeśli błąd "too large" (400/413) lub parsing/kompletność padnie -> dziel batch na pół i próbuj dalej
+    - Jeśli 429/5xx/timeout -> retry klienta; jeśli nadal błąd -> podziel batch (mniejsze requesty)
     - Ostatecznie fallback per-segment
     """
     if not batch:
@@ -1732,7 +1732,7 @@ def translate_batch_with_google_strategy(
             resp = llm.generate(prompt, model=model)
             mapping = parse_batch_response(resp)
 
-            # brakujÄ…ce segmenty -> per-seg retry
+            # brakujące segmenty -> per-seg retry
             missing = [s for s in batch_local if s.seg_id not in mapping or not (mapping[s.seg_id] or "").strip()]
             if missing:
                 debug_dump(debug_dir, f"{debug_prefix}_missing_d{depth}", prompt, resp)
@@ -1750,7 +1750,7 @@ def translate_batch_with_google_strategy(
         except Exception as e:
             debug_dump(debug_dir, f"{debug_prefix}_err_d{depth}", prompt, resp)
 
-            # JeĹ›li za duĹĽe: dziel
+            # Jeśli za duże: dziel
             if is_google_too_large(e) and len(batch_local) > 1 and depth < max_split_depth:
                 mid = len(batch_local) // 2
                 left = batch_local[:mid]
@@ -1763,7 +1763,7 @@ def translate_batch_with_google_strategy(
                 out.update(_attempt_translate(right, depth + 1))
                 return out
 
-            # BĹ‚Ä™dy chwilowe albo parsing: jeĹ›li da siÄ™ dzieliÄ‡, dziel; inaczej per-segment
+            # Błędy chwilowe albo parsing: jeśli da się dzielić, dziel; inaczej per-segment
             if len(batch_local) > 1 and depth < max_split_depth and is_google_retriable_error(e):
                 mid = len(batch_local) // 2
                 left = batch_local[:mid]
@@ -1807,9 +1807,9 @@ def translate_batch_with_ollama_strategy(
 ) -> Dict[str, str]:
     """
     Strategia pod Ollama:
-    - SprĂłbuj batch
+    - Spróbuj batch
     - Przy timeout/conn/parsing -> fallback per-segment (lokalnie zwykle szybkie i stabilne)
-    - Retry na poziomie klienta (OllamaClient) juĹĽ istnieje
+    - Retry na poziomie klienta (OllamaClient) już istnieje
     """
     seg_items = [(s.seg_id, s.inner) for s in batch]
     batch_xml = build_batch_payload(seg_items)
@@ -1854,7 +1854,7 @@ def translate_batch_with_ollama_strategy(
     missing = [s for s in batch if s.seg_id not in mapping or not (mapping[s.seg_id] or "").strip()]
     if missing:
         debug_dump(debug_dir, f"{debug_prefix}_missing", prompt, resp)
-        print(f"  [Ollama] brak {len(missing)} segmentĂłw -> per-segment retry")
+        print(f"  [Ollama] brak {len(missing)} segmentów -> per-segment retry")
         for s in missing:
             if sleep_s > 0:
                 time.sleep(sleep_s)
@@ -2721,7 +2721,7 @@ def validate_translated_epub(
                 opf_path = find_opf_path(zin)
                 manifest, spine = parse_spine_and_manifest(zin, opf_path)
             except Exception as e:
-                print(f"[VAL-ERR] BĹ‚Ä…d odczytu OPF/spine: {type(e).__name__}: {e}")
+                print(f"[VAL-ERR] Błąd odczytu OPF/spine: {type(e).__name__}: {e}")
                 return 2
 
             totals.spine_files = len(spine)
@@ -2766,7 +2766,7 @@ def validate_translated_epub(
         print(f"[VAL-ERR] Niepoprawny plik EPUB/ZIP: {e}")
         return 2
     except Exception as e:
-        print(f"[VAL-ERR] Nieoczekiwany bĹ‚Ä…d walidacji: {type(e).__name__}: {e}")
+        print(f"[VAL-ERR] Nieoczekiwany błąd walidacji: {type(e).__name__}: {e}")
         return 2
 
     suspicious_ratio = (
@@ -2776,10 +2776,10 @@ def validate_translated_epub(
     print(f"  Pliki w spine:                 {totals.spine_files}")
     print(f"  Pliki sprawdzone:              {totals.checked_files}")
     print(f"  Pliki XML OK:                  {totals.xml_ok_files}")
-    print(f"  Segmenty sprawdzone (>= {min_chars} znakĂłw): {totals.checked_segments}")
+    print(f"  Segmenty sprawdzone (>= {min_chars} znaków): {totals.checked_segments}")
     print(f"  Segmenty podejrzane (EN):      {totals.suspicious_segments}")
-    print(f"  WspĂłĹ‚czynnik podejrzanych:     {suspicious_ratio:.1%}")
-    print(f"  Twarde bĹ‚Ä™dy:                  {totals.hard_errors}")
+    print(f"  Współczynnik podejrzanych:     {suspicious_ratio:.1%}")
+    print(f"  Twarde błędy:                  {totals.hard_errors}")
 
     if totals.hard_errors > 0:
         print("VALIDATION RESULT: FAIL (hard errors)")
@@ -2901,10 +2901,10 @@ def translate_epub(
                 completed_chapters = {str(x) for x in ck_completed if isinstance(x, str)}
             print(
                 f"[CHECKPOINT-RESUME] wznowienie z {working_input} | "
-                f"ukoĹ„czone rozdziaĹ‚y: {len(completed_chapters)}"
+                f"ukończone rozdziały: {len(completed_chapters)}"
             )
         else:
-            print("[CHECKPOINT-RESUME] checkpoint niepasujÄ…cy do bieĹĽÄ…cych Ĺ›cieĹĽek - ignorujÄ™.")
+            print("[CHECKPOINT-RESUME] checkpoint niepasujący do bieżących ścieżek - ignoruję.")
 
     ledger_seed: Optional[LedgerSeedSummary] = None
     if segment_ledger is not None:
@@ -3005,7 +3005,7 @@ def translate_epub(
             chapter_prev_map: Dict[str, str] = {}
             ledger_rows = segment_ledger.load_chapter_states(chapter_path) if segment_ledger else {}
 
-            # cache + lista do tĹ‚umaczenia
+            # cache + lista do tłumaczenia
             for i, el in enumerate(elements):
                 if not has_translatable_text(el):
                     continue
@@ -3154,7 +3154,7 @@ def translate_epub(
                 )
 
             if chapter_new_total == 0:
-                # jeĹ›li cache zmieniĹ‚ DOM, zapisujemy ten plik
+                # jeśli cache zmienił DOM, zapisujemy ten plik
                 if chapter_cache > 0 or chapter_tm > 0 or chapter_ledger > 0:
                     out_bytes = etree.tostring(root, encoding="utf-8", xml_declaration=True, pretty_print=False)
                     modified[chapter_path] = out_bytes
@@ -3522,12 +3522,12 @@ def main() -> int:
         "--validate-max-suspicious-ratio",
         type=float,
         default=0.35,
-        help="Maksymalny akceptowalny odsetek podejrzanych segmentĂłw EN.",
+        help="Maksymalny akceptowalny odsetek podejrzanych segmentów EN.",
     )
     ap.add_argument(
         "--no-polish-guard",
         action="store_true",
-        help="WyĹ‚Ä…cz walidacjÄ™ jÄ™zyka PL przed zapisem do cache (domyĹ›lnie guard jest wĹ‚Ä…czony).",
+        help="Wyłącz walidację języka PL przed zapisem do cache (domyślnie guard jest włączony).",
     )
     ap.add_argument(
         "--no-language-guard",
@@ -3540,9 +3540,9 @@ def main() -> int:
         default=Path(__file__).resolve().with_name("language_guards.json"),
         help="JSON z profilami guarda jezykowego (mozna dopisac np. ro).",
     )
-    ap.add_argument("--tm-db", type=Path, default=None, help="ĹšcieĹĽka do SQLite Translation Memory.")
-    ap.add_argument("--tm-project-id", type=int, default=None, help="ID projektu do powiÄ…zania wpisĂłw TM.")
-    ap.add_argument("--tm-fuzzy-threshold", type=float, default=0.92, help="PrĂłg fuzzy TM 0..1.")
+    ap.add_argument("--tm-db", type=Path, default=None, help="Ścieżka do SQLite Translation Memory.")
+    ap.add_argument("--tm-project-id", type=int, default=None, help="ID projektu do powiązania wpisów TM.")
+    ap.add_argument("--tm-fuzzy-threshold", type=float, default=0.92, help="Próg fuzzy TM 0..1.")
     ap.add_argument("--run-step", choices=["translate", "edit"], default="translate", help="Krok pipeline do scope ledgera.")
     ap.add_argument("--no-diff-aware", action="store_true", help="Wylacz diff-aware retranslation dla cache-prefix.")
     ap.add_argument("--no-semantic-gate", action="store_true", help="Wylacz semantic diff gate i auto-findings QA.")
@@ -3612,7 +3612,7 @@ def main() -> int:
     if provider == "google":
         api_key = (args.api_key or "").strip() or os.environ.get("GOOGLE_API_KEY", "").strip()
         if not api_key:
-            ap.error("Dla --provider=google musisz podaÄ‡ --api-key lub ustawiÄ‡ env GOOGLE_API_KEY.")
+            ap.error("Dla --provider=google musisz podać --api-key lub ustawić env GOOGLE_API_KEY.")
         gcfg = GoogleConfig(
             api_key=api_key,
             model=args.model,
