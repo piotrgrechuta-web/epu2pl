@@ -2,6 +2,7 @@
 
 - [[Home]]
 - [[Workflow-and-Recovery]]
+- [[Project-Updates-2026]]
 
 ## Repository Docs
 
@@ -11,3 +12,4 @@
 - [UI Status](https://github.com/Piotr-Grechuta/epub-translator-studio/blob/main/docs/08-Status-UI-i-Wiki.md)
 - [Roadmap](https://github.com/Piotr-Grechuta/epub-translator-studio/blob/main/docs/07-Roadmapa-i-kontrybucje.md)
 - [Backlog](https://github.com/Piotr-Grechuta/epub-translator-studio/blob/main/docs/09-Backlog-do-uzgodnienia.md)
+- [Series Memory](https://github.com/Piotr-Grechuta/epub-translator-studio/blob/main/docs/10-Series-Style-Memory.md)
