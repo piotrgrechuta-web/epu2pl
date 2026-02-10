@@ -983,7 +983,7 @@ def sanitize_model_output(s: str) -> str:
     if out.startswith("```"):
         out = re.sub(r"^```[a-zA-Z0-9_-]*\s*", "", out)
         out = re.sub(r"\s*```$", "", out)
-    out = re.sub(r"^\s*(TĹ‚umaczenie|Translation)\s*:\s*", "", out, flags=re.IGNORECASE)
+    out = re.sub(r"^\s*(Tłumaczenie|Translation)\s*:\s*", "", out, flags=re.IGNORECASE)
     return out.strip()
 
 
@@ -1015,14 +1015,14 @@ def build_batch_prompt(
         )
     parts.append(
         "Zadanie:\n"
-        "PrzetĹ‚umacz na jÄ™zyk polski PONIĹ»SZY XML (XHTML).\n"
-        "WewnÄ…trz <seg> znajdujÄ… siÄ™ fragmenty (wnÄ™trza akapitĂłw). KaĹĽdy <seg> tĹ‚umacz jako caĹ‚oĹ›Ä‡.\n"
+        "Przetłumacz na język polski PONIŻSZY XML (XHTML).\n"
+        "Wewnątrz <seg> znajdują się fragmenty (wnętrza akapitów). Każdy <seg> tłumacz jako całość.\n"
         "Wymagania krytyczne:\n"
-        "- ZACHOWAJ DOKĹADNIE strukturÄ™ i tagi: <batch>, <seg id=\"...\"> oraz WSZYSTKIE tagi XHTML wewnÄ…trz.\n"
-        "- Nie zmieniaj ani nie usuwaj atrybutĂłw, w tym id w <seg>.\n"
-        "- Nie dodawaj ĹĽadnego komentarza/metatekstu.\n"
-        "- ZwrĂłÄ‡ WYĹÄ„CZNIE wynikowy XML <batch>...</batch>.\n"
-        "\nWEJĹšCIE:\n"
+        "- ZACHOWAJ DOKŁADNIE strukturę i tagi: <batch>, <seg id=\"...\"> oraz WSZYSTKIE tagi XHTML wewnątrz.\n"
+        "- Nie zmieniaj ani nie usuwaj atrybutów, w tym id w <seg>.\n"
+        "- Nie dodawaj żadnego komentarza/metatekstu.\n"
+        "- Zwróć WYŁĄCZNIE wynikowy XML <batch>...</batch>.\n"
+        "\nWEJŚCIE:\n"
         f"{batch_xml}\n"
     )
     return "\n\n".join(parts).strip() + "\n"
@@ -1156,7 +1156,7 @@ def build_language_instruction(source_lang: str, target_lang: str) -> str:
     return (
         "KRYTYCZNE: Tlumacz wiernie z jezyka "
         f"{src} na jezyk {tgt}. "
-        f"Wynik musi byc wyĹ‚Ä…cznie w jezyku {tgt}. "
+        f"Wynik musi byc wyłącznie w jezyku {tgt}. "
         "Zachowaj znaczniki XML i ich kolejnosc."
     )
 
@@ -1172,7 +1172,7 @@ def debug_dump(debug_dir: Optional[Path], prefix: str, prompt: str, response: st
 def parse_batch_response(xml_text: str) -> Dict[str, str]:
     raw = sanitize_model_output(xml_text).strip()
     if not raw:
-        raise RuntimeError("Pusta odpowiedĹş z modelu (response=='' po sanitize).")
+        raise RuntimeError("Pusta odpowiedź z modelu (response=='' po sanitize).")
 
     m = re.search(r"(<batch\b[\s\S]*?</batch>)", raw, flags=re.IGNORECASE)
     if m:
@@ -1182,12 +1182,12 @@ def parse_batch_response(xml_text: str) -> Dict[str, str]:
     parser = etree.XMLParser(recover=True, huge_tree=True)
     root = etree.fromstring(raw.encode("utf-8", errors="replace"), parser=parser)
     if root is None:
-        raise RuntimeError("Nie udaĹ‚o siÄ™ sparsowaÄ‡ odpowiedzi modelu jako XML (root=None).")
+        raise RuntimeError("Nie udało się sparsować odpowiedzi modelu jako XML (root=None).")
 
     if etree.QName(root).localname.lower() != "batch":
         batch = root.find(".//{*}batch")
         if batch is None:
-            raise RuntimeError("OdpowiedĹş nie zawiera elementu <batch>.")
+            raise RuntimeError("Odpowiedź nie zawiera elementu <batch>.")
         root = batch
 
     out: Dict[str, str] = {}
@@ -1198,7 +1198,7 @@ def parse_batch_response(xml_text: str) -> Dict[str, str]:
         out[sid] = inner_xml(seg)
 
     if not out:
-        raise RuntimeError("Nie znaleziono ĹĽadnych <seg id=...> w <batch>.")
+        raise RuntimeError("Nie znaleziono żadnych <seg id=...> w <batch>.")
     return out
 
 
@@ -2930,8 +2930,8 @@ def translate_epub(
     semantic_findings: List[Dict[str, Any]] = []
     quote_stats = QuoteNormalizationStats()
 
-    print("\n=== POSTÄP GLOBALNY (CAĹY EPUB) ===")
-    print(f"  Segmenty Ĺ‚Ä…cznie:     {global_total}")
+    print("\n=== POSTĘP GLOBALNY (CAŁY EPUB) ===")
+    print(f"  Segmenty łącznie:     {global_total}")
     print(f"  Segmenty z cache:     {global_cached}")
     if resume_extra_done > 0:
         print(f"  Segmenty z resume:    {resume_extra_done}")
@@ -2940,7 +2940,7 @@ def translate_epub(
         print(f"  Ledger upserted:     {ledger_seed.upserted_segments}")
         if ledger_seed.pruned_segments > 0:
             print(f"  Ledger pruned:       {ledger_seed.pruned_segments}")
-    print(f"  Segmenty do tĹ‚umacz.: {global_to_translate}")
+    print(f"  Segmenty do tłumacz.: {global_to_translate}")
     if global_total > 0:
         print(f"  Start progress:       {global_done}/{global_total} ({(global_done/global_total)*100:.1f}%)")
     print("===================================\n")
