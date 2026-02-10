@@ -7,7 +7,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.pip_audit_cve_gate import _collect_cves  # noqa: E402
+from scripts.pip_audit_cve_gate import _collect_cves, _extract_dependency_rows  # noqa: E402
 
 
 def test_collect_cves_reads_ids_and_aliases() -> None:
@@ -30,3 +30,9 @@ def test_collect_cves_reads_ids_and_aliases() -> None:
     assert "CVE-2024-1111" in out
     assert "CVE-2024-2222" in out
     assert len(out) == 2
+
+
+def test_extract_dependency_rows_supports_object_format() -> None:
+    payload = {"dependencies": [{"name": "requests", "version": "2.0", "vulns": []}]}
+    rows = _extract_dependency_rows(payload)
+    assert len(rows) == 1

@@ -34,6 +34,16 @@ def _collect_cves(rows: Iterable[Dict[str, Any]]) -> Set[str]:
     return out
 
 
+def _extract_dependency_rows(payload: Any) -> List[Dict[str, Any]]:
+    if isinstance(payload, list):
+        return [x for x in payload if isinstance(x, dict)]
+    if isinstance(payload, dict):
+        deps = payload.get("dependencies")
+        if isinstance(deps, list):
+            return [x for x in deps if isinstance(x, dict)]
+    return []
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("Usage: pip_audit_cve_gate.py <pip-audit.json> [cve_threshold]")
@@ -49,10 +59,11 @@ def main() -> int:
     except Exception as e:
         print(f"[pip-audit-gate] invalid json: {e}")
         return 2
-    if not isinstance(payload, list):
-        print("[pip-audit-gate] report format mismatch (expected list)")
+    rows = _extract_dependency_rows(payload)
+    if not rows:
+        print("[pip-audit-gate] report format mismatch (expected list or object.dependencies)")
         return 2
-    cves = sorted(_collect_cves(payload))
+    cves = sorted(_collect_cves(rows))
     count = len(cves)
     print(f"[pip-audit-gate] detected CVEs: {count}; threshold: {threshold}")
     if cves:
