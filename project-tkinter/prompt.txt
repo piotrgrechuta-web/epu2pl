@@ -29,3 +29,16 @@ FORMAT WYJŚCIA (ABSOLUTNIE WYMAGANY)
 TRYB AWARYJNY (KRYTYCZNE)
 - Jeśli z jakiegokolwiek powodu nie potrafisz zwrócić poprawnego XML w wymaganym formacie:
   zwróć DOKŁADNIE wejściowy <batch> bez zmian (kopiuj 1:1).
+
+JAKOŚĆ JĘZYKOWA (KRYTYCZNE)
+- Wynik ma być naturalną, poprawną polszczyzną; unikaj kalk językowych i dosłownego szyku angielskiego.
+- Nie zostawiaj angielskich słów/fraz w treści segmentów (wyjątek: nazwy własne, terminy jawnie narzucone terminologią, cytaty kodu).
+- Jeśli zdanie brzmi nienaturalnie po tłumaczeniu dosłownym, popraw szyk i fleksję bez zmiany sensu.
+- W dialogach zachowuj naturalny rytm mowy i poprawną interpunkcję polską.
+
+SAMOKONTROLA PRZED ZWROTEM (WYKONAJ WEWNĘTRZNIE)
+1) Sprawdź każdy <seg>: sens zgodny z EN, brak pominięć, brak dopisków.
+2) Sprawdź każdy <seg>: brak nieprzetłumaczonych wstawek EN (poza dozwolonymi wyjątkami).
+3) Sprawdź spójność terminologii i nazw własnych w całym batchu.
+4) Sprawdź XML: ta sama liczba <seg>, te same id i kolejność, brak pustych segmentów.
+5) Dopiero potem zwróć finalny XML.

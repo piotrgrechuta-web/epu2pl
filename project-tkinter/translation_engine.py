@@ -1022,6 +1022,13 @@ def build_batch_prompt(
         "- Nie zmieniaj ani nie usuwaj atrybutów, w tym id w <seg>.\n"
         "- Nie dodawaj żadnego komentarza/metatekstu.\n"
         "- Zwróć WYŁĄCZNIE wynikowy XML <batch>...</batch>.\n"
+        "- Nie zostawiaj angielskich fraz/słów w segmentach (wyjątek: nazwy własne i terminy jawnie narzucone).\n"
+        "- Jeśli tłumaczenie dosłowne brzmi nienaturalnie po polsku, popraw szyk/fleksję bez zmiany sensu.\n"
+        "Samokontrola (wewnętrznie, przed odpowiedzią):\n"
+        "1) każdy <seg> ma sens zgodny z EN,\n"
+        "2) brak przypadkowych wstawek EN,\n"
+        "3) zachowana terminologia i nazwy własne,\n"
+        "4) ta sama liczba <seg>, te same id i kolejność, brak pustych <seg>.\n"
         "\nWEJŚCIE:\n"
         f"{batch_xml}\n"
     )
