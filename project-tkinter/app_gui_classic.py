@@ -781,7 +781,7 @@ class TranslatorGUI:
         self.temperature_var = tk.StringVar(value="0.1")
         self.num_ctx_var = tk.StringVar(value="8192")
         self.num_predict_var = tk.StringVar(value="2048")
-        self.tags_var = tk.StringVar(value="p,li,h1,h2,h3,h4,h5,h6,blockquote,dd,dt,figcaption,caption")
+        self.tags_var = tk.StringVar(value="div,p,li,h1,h2,h3,h4,h5,h6,blockquote,dd,dt,figcaption,caption")
         self.use_cache_var = tk.BooleanVar(value=True)
         self.use_glossary_var = tk.BooleanVar(value=True)
         self.hard_gate_epubcheck_var = tk.BooleanVar(value=True)

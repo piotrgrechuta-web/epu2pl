@@ -52,7 +52,7 @@ from retry_ux import (
 XHTML_NS = "http://www.w3.org/1999/xhtml"
 
 DEFAULT_BLOCK_TAGS = (
-    "p", "li",
+    "div", "p", "li",
     "h1", "h2", "h3", "h4", "h5", "h6",
     "blockquote", "dd", "dt",
     "figcaption", "caption",
